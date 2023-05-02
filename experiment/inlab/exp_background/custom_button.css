@@ -1,0 +1,5 @@
+/* CSS overwriting the button property */
+/* borrowing Bootstrap style for btn elements, but combining styles a bit */
+.jspsych-btn {
+  margin-bottom: 100px;
+}

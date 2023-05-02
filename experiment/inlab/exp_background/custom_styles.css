@@ -1,0 +1,23 @@
+/* CSS defining the dots styles used in the ManualInhibitionOnline experiment */
+body {
+    margin: 0;
+    position: fixed;
+    overscroll-behavior: none;
+    background: #666666;
+}
+
+canvas {
+    background: #666666;
+}
+
+p {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+ .jspsych-content {
+   max-width: 95%; /* this is mainly an IE 10-11 fix */
+   text-align: center;
+   margin: 0; /* 0 for canvas drawing */
+ }

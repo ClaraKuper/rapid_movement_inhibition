@@ -1,0 +1,129 @@
+<!doctype html>
+<!-- Example taken from http://www.jspsych.org/tutorials/rt-task/ and adapted for the use with JATOS -->
+<html lang="en">
+
+<head>
+    <title>Screen Setup</title>
+    <!-- If you use an older version of JATOS (< 3.3.1) you have to use absolute paths for your assets and jatos.js-->
+    <script src="jspsych-6.3.1/jspsych.js"></script>
+    <script src="jspsych-6.3.1/plugins/eye-tracker-calibration.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-fullscreen.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-html-button-response.js"></script>
+
+    <!-- custom scripts -->
+    <script src="jatos.js"></script>
+    <script src="common_vars.js"></script>
+    <script src="common_funcs.js"></script>
+    <link href="jspsych-6.3.1/css/jspsych.css" rel="stylesheet" type="text/css"/>
+    <link href="credit_card_styles.css" rel="stylesheet" type="text/css">
+    <!-- below, we prevent scaling and marking -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+
+<body bgcolor= '#666666'>
+<script>
+    let eyetracker_check = false;
+
+    let confirm_fullscreen = {
+        type: "fullscreen",
+        message: '<p>Please confirm the fullscreen: </p>',
+        fullscreen_mode: true,
+        button_label: 'Fullscreen',
+        data: {
+            test_part: 'fullscreen_request',
+        }
+    };
+    timeline.push(confirm_fullscreen);
+
+     let ask_if_ready = {
+        type: 'html-button-response',
+        stimulus: "<p>The research assistant will now setup the eye tracker and calibrate.</p> " +
+            "<div style='text-align: left'> <ol> " +
+            "<li>The eye is visible to the eye tracking camera and the eyeball model is correct.</li> " +
+            "<li>The eyetracker was calibrate successfully.</li> "+
+            "</ol> " +
+            "</div>",
+        choices: ['Eyetracker is set up.'],
+        response_ends_trial: true,
+    }
+
+    let look_check_intro = {
+        type: 'html-button-response',
+        stimulus: "<p>Now we will run a little gaze position test. Please look at the white shrinking dots.</p> " +
+            "<p>You will see some black and white markers in the corners. They are important for the " +
+            "eyetracker, but you can ignore them.</p> ",
+        choices: ['Go to test.'],
+        response_ends_trial: true,
+    }
+
+    let show_tracker_setup = {
+        type: "eye-tracker-calibration",
+        fixation_target_positions_x: function(){return [
+            window.innerWidth/2, // center - center
+            window.innerWidth/2, // center - up
+            window.innerWidth - 100, // bottom (-100) - center
+            100, // left (+100) - center
+            window.innerWidth/2 // center - up
+        ]},
+        fixation_target_positions_y: function(){return [
+            window.innerHeight/2, // center - center
+            window.innerHeight - 100, // bottom (-100) - center
+            window.innerHeight/2, // center - right
+            window.innerHeight/2, // center - left
+            100 // up (+100) - center
+        ]},
+        shrink_duration: 1500,
+        data: {
+            test_part: 'setup',
+        },
+    };
+
+    let ask_if_setup_complete = {
+        type: 'html-button-response',
+        stimulus: "<p>Calibration looks good? This means: </p> " +
+            "<div style='text-align: left'> <ol> " +
+            "<li>The eyetracker detected the surface markers.</li> " +
+            "<li>The gaze position followed the dots and the eye was not occluded.</li> " +
+            "<li>The gaze offset was less than two fingers width.</li> " +
+            "<li>The blinds are closed, the lights are turned on.</li> " +
+            "</ol> " +
+            "</div>",
+        choices: ['Setup Ready.', 'Repeat Setup.'],
+        response_ends_trial: true,
+        on_finish: function (data){
+            eyetracker_check = data.button_pressed === '0';
+        },
+    }
+
+    let setup_node = {
+        timeline: [ask_if_ready, look_check_intro, show_tracker_setup, ask_if_setup_complete],
+        loop_function: function(){return !eyetracker_check}
+    }
+    timeline.push(setup_node);
+
+    /* start the experiment */
+    // call jatos function, we can use jatos code after this line
+    jatos.onLoad(function () {
+        // add general data properties to all fields of this trial
+        jsPsych.data.addProperties({
+            subject: jatos.workerId,
+            component: 'Setup_Screen',
+            session_code: jatos.studySessionData.ID, // the component of the experiment
+            startup_time: performance.now(),
+            startup_datetime: Math.round(Date.now() / 1000),
+        });
+
+        jsPsych.init({
+            timeline: timeline,
+            on_finish: function () {
+                let resultJson = jsPsych.data.get().json();
+                jatos.submitResultData(resultJson, jatos.startNextComponent)
+                    .catch(() => console.log("File upload failed"));
+            }
+        })
+    });
+</script>
+</body>
+
+
+</html>

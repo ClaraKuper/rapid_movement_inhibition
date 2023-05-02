@@ -1,0 +1,152 @@
+<!doctype html>
+<!-- Calibrate the Screen Size and save the Pixel_to_DVA value in the session data -->
+<!-- Example taken from http://www.jspsych.org/tutorials/rt-task/ and adapted for the use with JATOS -->
+<html lang="en">
+
+<head>
+    <title>Screen Setup</title>
+    <!-- If you use an older version of JATOS (< 3.3.1) you have to use absolutes path for you assets and jatos.js-->
+    <script src="jspsych-6.3.1/jspsych.js"></script>
+    <script src="jspsych-6.3.1/plugins/canvas-setup-check.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-fullscreen.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-html-button-response.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-survey-text.js"></script>
+    <!-- custom scripts -->
+    <script src="jatos.js"></script>
+    <script src="common_vars.js"></script>
+    <script src="common_funcs.js"></script>
+    <link href="jspsych-6.3.1/css/jspsych.css" rel="stylesheet" type="text/css"/>
+    <link href="credit_card_styles.css" rel="stylesheet" type="text/css">
+    <!-- below, we prevent scaling and marking -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+
+<body bgcolor= '#666666'>
+<script>
+    let setup_complete = false;
+    let session_code;
+
+    let initial_screen_check = {
+        type: 'html-button-response',
+        stimulus: "<p>This experiment has a few basic rules: </p> " +
+            "<div style='text-align: left'> <ol> " +
+            "<li>You need to run it on a device with a touchscreen.</li> " +
+            "<li>The screen must be at least 13 cm wide and 7.5 cm high.</li> " +
+            "<li>Your device must run on android (no apple devices).</li> " +
+            "<li>You need to be in landscape mode.</li> " +
+            "<li>It seems like you don't fullfill these requirements. If you're not in landscape mode, " +
+            "then rotate your phone and load this page again.</li> " +
+            "</ol> " +
+            "</div>",
+        choices: [],
+        data: {
+            test_part: 'show_rules',
+        },
+    }
+
+    let screen_entry_check = {
+        timeline: [initial_screen_check],
+        conditional_function: function(){return !check_screen_validity()},
+        loop_function: function(){return !check_screen_validity()},
+    }
+    timeline.push(screen_entry_check);
+
+    let hand_over = {
+        type: 'html-button-response',
+        stimulus: "<p>Please hand your phone to the experimenter.</p> ",
+        choices: ['Experimenter is in charge.'],
+        response_ends_trial: true,
+        data: {
+            test_part: 'hand_over',
+        },
+    }
+    timeline.push(hand_over);
+
+    let participant_id = {
+        type: 'survey-text',
+        questions: [
+            {prompt: 'What is the participant ID?',
+            required: true,
+            placeholder: 'participant_session',
+            name: 'ID',
+            },
+        ],
+        on_finish: function(data){
+            jatos.setStudySessionData(data.response);
+            jsPsych.data.addProperties({
+                session_code: data.response['ID'],
+            });
+        },
+        data: {
+            test_part: 'ID_question',
+        },
+    }
+    timeline.push(participant_id);
+
+    let confirm_fullscreen = {
+        type: "fullscreen",
+        message: '<p>Please confirm the fullscreen: </p>',
+        fullscreen_mode: true,
+        button_label: 'Fullscreen',
+        data: {
+            test_part: 'fullscreen_request',
+        }
+    };
+    timeline.push(confirm_fullscreen);
+
+    let show_screen_test = {
+        type: "canvas-setup-check",
+        data: {
+            test_part: 'setup',
+        },
+    };
+
+    let ask_if_setup_complete = {
+        type: 'html-button-response',
+        stimulus: "<p>Setup Completed? This means: </p> " +
+            "<div style='text-align: left'> <ol> " +
+            "<li>The central square is in the center of the surface markers.</li> " +
+            "<li>The photodiode is attached and brightness changes are detected.</li> " +
+            "<li>The loudness sensor picked up the touch responses of the participant.</li> " +
+            "</ol> " +
+            "</div>",
+        choices: ['Setup Ready.', 'Repeat Setup.'],
+        response_ends_trial: true,
+        on_finish: function (data){
+            setup_complete = data.button_pressed === '0';
+        },
+    }
+
+    let setup_node = {
+        timeline: [show_screen_test, ask_if_setup_complete],
+        loop_function: function(){return !setup_complete}
+    }
+    timeline.push(setup_node);
+
+    /* start the experiment */
+    // call jatos function, we can use jatos code after this line
+    jatos.onLoad(function () {
+        // add general data properties to all fields of this trial
+        jsPsych.data.addProperties({
+            subject: jatos.workerId,
+            session_number: jatos.urlQueryParameters.SESSION_NUMBER,
+            component: 'Setup_Screen', // the component of the experiment
+            session_code: jatos.studySessionData.ID,
+            startup_time: performance.now(),
+            startup_datetime: Math.round(Date.now() / 1000),
+        });
+
+        jsPsych.init({
+            timeline: timeline,
+            on_finish: function () {
+                let resultJson = jsPsych.data.get().json();
+                jatos.submitResultData(resultJson, jatos.startNextComponent)
+                    .catch(() => console.log("File upload failed"));
+            }
+        })
+    });
+</script>
+</body>
+
+
+</html>
