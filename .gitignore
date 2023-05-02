@@ -3,3 +3,4 @@ data
 .DS*
 .idea
 */__pycache__
+*/jspsych-*
