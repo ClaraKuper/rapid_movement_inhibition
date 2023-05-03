@@ -1,0 +1,65 @@
+<!doctype html>
+<!-- Example taken from http://www.jspsych.org/tutorials/rt-task/ and adapted for the use with JATOS -->
+<html lang="en">
+
+<head>
+    <title>Estimate Refresh</title>
+    <!-- If you use an older version of JATOS (< 3.3.1) you have to use absolutes path for you assets and jatos.js-->
+    <script src="jspsych-6.3.1/jspsych.js"></script>
+    <!-- custom scripts -->
+    <script src="jspsych-6.3.1/plugins/test_screen_refresh_rate.js"></script>
+    <!-- jatos import -->
+    <script src="jatos.js"></script>
+    <!-- css import -->
+    <link href="jspsych-6.3.1/css/jspsych.css" rel="stylesheet" type="text/css">
+    <!-- meta prevents zooming in -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+</head>
+
+<body bgcolor='gray'>
+
+<script>
+
+    // salute the hacker
+    console.log("Let's check out this screen!");
+
+    let timeline = [];
+
+    // start measuring the refresh rate
+    let get_refresh_rate = {
+        type: "screen-refresh-test",
+    };
+
+    let timeline_repeating_node = {
+        timeline: [get_refresh_rate],
+        repetitions: 1000
+    }
+    timeline.push(timeline_repeating_node);
+
+    /* start the experiment */
+    // load jatos - I can use jatos functions after this line
+    jatos.onLoad(function () {
+    //    jatos.uploadResultFile(timelineVariables, "allTimelineVariables.json");
+        jsPsych.data.addProperties({
+           // subject: jatos.workerId, // id of the subject
+            component: 'check_screen', // name the component
+        });
+
+        jsPsych.init({
+            timeline: timeline, // use the timeline to run the experiment
+            on_finish: function () {
+                // once the code has run: save the results and call the next jatos component
+                let resultCSV = jsPsych.data.get().csv();
+                jatos.uploadResultFile(resultCSV, "result_file_refresh.csv");
+                jatos.submitResultData(resultCSV, jatos.startNextComponent);
+        }
+    });
+
+
+   });
+</script>
+</body>
+
+
+</html>
