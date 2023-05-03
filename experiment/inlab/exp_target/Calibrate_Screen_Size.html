@@ -1,0 +1,131 @@
+<!doctype html>
+<!-- Calibrate the Screen Size and save the Pixel_to_DVA value in the session data -->
+<!-- Example taken from http://www.jspsych.org/tutorials/rt-task/ and adapted for the use with JATOS -->
+<html lang="en">
+
+<head>
+    <title>Screen Calibration</title>
+    <!-- If you use an older version of JATOS (< 3.3.1) you have to use absolutes path for you assets and jatos.js-->
+    <script src="jspsych-6.3.1/jspsych.js"></script>
+    <script src="jspsych-6.3.1/plugins/adapted-virtual-chinrest.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-fullscreen.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-html-button-response.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-survey-text.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-survey-multi-choice.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-preload.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-video-button-response.js"></script>
+
+
+
+    <!-- custom scripts -->
+    <script src="common_vars.js"></script>
+    <script src="common_funcs.js"></script>
+    <script src="jatos.js"></script>
+
+    <link href="jspsych-6.3.1/css/jspsych.css" rel="stylesheet" type="text/css"/>
+    <link href="credit_card_styles.css" rel="stylesheet" type="text/css">
+    <!-- below, we prevent scaling and marking -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- external script imports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/2.6.3/svg.min.js"></script>
+
+</head>
+
+<body bgcolor= '#666666'>
+<script>
+
+    let preload = {
+        type: 'preload'
+    };
+    timeline.push(preload);
+
+    let prompt = ''
+    let calibration_instruction_video = {
+        type: 'video-button-response',
+        choices: ['continue'],
+        stimulus: ['files/explanation_calibration.mp4'],
+        trial_ends_after_video: true,
+        response_ends_trial: true,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        controls: true,
+    }
+
+    let confirm_fullscreen = {
+        type: "fullscreen",
+        message: '<p>Please confirm the fullscreen: </p>',
+        fullscreen_mode: true,
+        button_label: 'Fullscreen',
+        data: {
+            test_part: 'fullscreen_request',
+        }
+    };
+    timeline.push(confirm_fullscreen);
+
+    let calibrate_screen_size = {
+        type: "virtual-chinrest",
+        blindspot_reps: 5,
+        resize_units: "none",
+        data: {
+            test_part: 'virtual_chinrest',
+        },
+        on_finish: function (data) {
+            jatos.setStudySessionData(data);
+            calibrationValid = check_calibration_validity(data);
+            repeatCalibration = !calibrationValid;
+        }
+    };
+
+    let reinstruct_calibration_screen = {
+        type: 'html-button-response',
+        stimulus: "<p>The calibration failed. This could have several reasons: </p> " +
+            "<div style='text-align: left'> <ol> " +
+            "<li>You are to close or to far away from the screen. Make sure the distance is about a bend armlength.</li> " +
+            "<li>Your screen is too small at the distance from which you are measuring. If that's comfortable, " +
+            "try to sit closer to the screen.</li> " +
+            "<li>Maybe the credit card scaling was off or you tapped to quickly in the blind spot test.</li> " +
+            "<li>If any of this seems reasonable, please repeat the calibration. Otherwise, just close this window " +
+            "and return your submission in prolific.</li> " +
+            "</ol> " +
+            "</div>",
+        choices: ['Calibrate the distance again.'],
+        response_ends_trial: true,
+    }
+
+    let reinstruction_node = {
+        timeline: [reinstruct_calibration_screen],
+        conditional_function: function(){return !calibrationValid}
+    }
+
+    calibration_node = {
+        timeline: [calibration_instruction_video, calibrate_screen_size, reinstruction_node],
+        loop_function: function(){return !calibrationValid}
+    }
+    timeline.push(calibration_node);
+
+    /* start the experiment */
+    // call jatos function, we can use jatos code after this line
+    jatos.onLoad(function () {
+        // add general data properties to all fields of this trial
+        jsPsych.data.addProperties({
+            subject: jatos.workerId,
+            component: 'Calibrate_Screen',
+            session_code: jatos.studySessionData.ID, // the component of the experiment
+            startup_time: performance.now(),
+            startup_datetime: Math.round(Date.now() / 1000),
+        });
+
+        jsPsych.init({
+            timeline: timeline,
+            on_finish: function () {
+                let resultJson = jsPsych.data.get().json();
+                jatos.submitResultData(resultJson, jatos.startNextComponent)
+                    .catch(() => console.log("File upload failed"));
+            }
+        })
+    });
+</script>
+</body>
+
+
+</html>
