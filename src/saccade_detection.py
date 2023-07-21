@@ -1,14 +1,33 @@
 import src.helper_functions as helper
 import numpy as np
+import os
 import pandas as pd
 
 
-def detect_saccades(filename, save_to,
-                    x_name, y_name, time_name,
-                    confidence_name, confidence_threshold,
+def write_saccades_to_file(raw_data_name, save_as_name):
+    if os.path.isfile(save_as_name):
+        raise FileExistsError(f'File {save_as_name} exists.')
+
+    saccade_df = pd.DataFrame(columns=['onset_eyetracker', 'offset_eyetracker', 'amplitude', 'duration', 'peak_velocity'])
+    df = pd.read_csv(raw_data_name)
+    amplitudes, peak_velocities, saccade_durations, onsets, offsets = detect_saccades(data=df,
+                                                                                      x_name='x_norm',
+                                                                                      y_name='y_norm',
+                                                                                      time_name='gaze_timestamp',
+                                                                                      confidence_name='confidence',
+                                                                                      confidence_threshold=0.9)
+    saccade_df['onset_eyetracker'] = onsets
+    saccade_df['offset_eyetracker'] = offsets
+    saccade_df['amplitude'] = amplitudes
+    saccade_df['duration'] = saccade_durations
+    saccade_df['peak_velocity'] = peak_velocities
+
+    saccade_df.to_csv(save_as_name)
+
+
+def detect_saccades(data, x_name, y_name, time_name, confidence_name, confidence_threshold,
                     velocity_threshold_factor=3):
-    df = pd.read_csv(filename)
-    df_high_confidence = helper.threshold_setnan_entries_from_df(df,
+    df_high_confidence = helper.threshold_setnan_entries_from_df(data,
                                                                  [x_name, y_name],
                                                                  confidence_name,
                                                                  confidence_threshold)
@@ -17,9 +36,7 @@ def detect_saccades(filename, save_to,
     y_pos = df_high_confidence_smoothed[y_name]
     time = df_high_confidence_smoothed[time_name]
     frequency = 1 / np.median(np.diff(time))
-    amplitudes, pvels, saccdurs, onsets, offsets = engbert_mergenthaler(x_pos, y_pos,
-                                                                        time, velocity_threshold_factor,
-                                                                        frequency)
+    return engbert_mergenthaler(x_pos, y_pos, time, velocity_threshold_factor, frequency)
 
 
 def engbert_mergenthaler(x, y, time, thresh_factor, freq):
