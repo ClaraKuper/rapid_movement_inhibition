@@ -1,0 +1,93 @@
+import numpy as np
+import pandas as pd
+import scipy.stats as st
+from scipy.optimize import curve_fit
+
+
+def save_dict_as_table(dictionary, out_file, key_name):
+    data = pd.DataFrame()
+    for key in dictionary:
+        df = pd.DataFrame.from_dict(dictionary[key], orient='index')
+        df[key_name] = key
+        data = pd.concat([data, df], axis=0)
+    data = data.reset_index(drop=False, names='condition')
+    data.to_csv(out_file, index=False)
+    return data
+
+
+def scale_value_by_dict(data, scale_value, scale_by, scale_dict):
+    scaled_values = data[scale_value].copy(deep = True)
+    for key in scale_dict:
+        scaled_values[data[scale_by] == key] /= scale_dict[key]
+    return scaled_values
+
+
+def set_values_relative(data, set_value_col, relative_to_cols, key):
+    aligned_value = data[set_value_col]
+    for col in relative_to_cols:
+        aligned_value -= data[col]
+    data[f'{set_value_col}{key}'] = aligned_value
+    return data
+
+
+def smooth_array(array, time_array, smooth, time):
+    start = time - smooth
+    end = time + smooth
+    idx_1 = np.where(time_array >= start)
+    idx_2 = np.where(time_array < end)
+    mean_value = np.mean(array[np.intersect1d(idx_1, idx_2)])
+
+    return mean_value
+
+
+def sigmoid(x, L, x0, k, b):
+    y = L/(1 + np.exp(-k*(x-x0))) + b
+    return y
+
+
+def fit_sigmoid_func(x_data, y_data):
+    # initial guess
+    try:
+        p0 = [max(y_data), np.median(x_data), 0.001, min(y_data)]
+        popt, pcov = curve_fit(sigmoid, x_data, y_data, p0, method='lm')
+    except ValueError:
+        finite_lim = np.where([not np.isfinite(y) for y in y_data])[0].min()
+        y_data = y_data[:finite_lim]
+        x_data = x_data[:finite_lim]
+
+        p0 = [max(y_data), np.median(x_data), 0.001, min(y_data)]
+        popt, pcov = curve_fit(sigmoid, x_data, y_data, p0, method='lm')
+
+    return popt, pcov
+
+
+def compute_distance_pythagoras(x1, x2, y1, y2):
+    x_val = x1 - x2
+    y_val = y1 - y2
+
+    return pythagoras(x_val, y_val)
+
+
+def pythagoras(x_value, y_value):
+    """
+    takes two values and computes the distance between them
+    """
+    return np.sqrt(x_value**2 + y_value**2)
+
+
+def get_average_rates(rates, scale, conditions, parameters, condition_color_dict, ci, axs, plotting_func):
+    rates_dict = {}
+    ci_dict = {}
+    for cond in conditions:
+        ci_dict[cond] = {}
+        condition_rates = [rates[p][cond] for p in rates]
+        average_rate = np.mean(condition_rates, axis=0)
+        rates_dict[cond] = average_rate
+        ci_upper, ci_lower = st.t.interval(alpha=ci, df=len(rates) - 1,
+                                           loc=average_rate,
+                                           scale=st.sem(condition_rates))
+        ci_dict[cond]['ci_upper'] = ci_upper
+        ci_dict[cond]['ci_lower'] = ci_lower
+
+    plotting_func(rates_dict, ci_dict, scale, parameters, condition_color_dict, axs)
+    # return rates_dict, scale
