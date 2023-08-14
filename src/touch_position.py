@@ -24,7 +24,6 @@ def get_fitted_responses(data, x_full_length, y_full_length, x_col, y_col, targe
     # explicitly set the type of the columns to enable later operations
     data[f'{x_col}{relative_key}'] = data[f'{x_col}{relative_key}'].astype(float)
     data[f'{y_col}{relative_key}'] = data[f'{y_col}{relative_key}'].astype(float)
-
     data[target_x_col] = data[target_x_col].astype(float)
     data[target_y_col] = data[target_y_col].astype(float)
 
@@ -49,7 +48,7 @@ def get_fitted_responses(data, x_full_length, y_full_length, x_col, y_col, targe
                                                            time_col_name,
                                                            distance_dva_name)
 
-    return smoothed_response_positions, position_response_dictionary, scale
+    return smoothed_response_positions, position_response_dictionary, scale, data
 
 
 def fit_by_id_and_condition(data, id_col_name, condition_dictionary, fit_function, x_name, y_name):

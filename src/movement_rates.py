@@ -67,7 +67,7 @@ def get_baseline(rate):
     return np.mean(rate)
 
 
-def get_normalized_rates(data, scale, onset_column, offset_column, order_column, analysis_parameter_dict):
+def get_normalized_rates(data, scale, onset_column, offset_column, order_column, analysis_parameter_dict, n_trials = None):
     onsets = data[onset_column].dropna().astype(int).values
     offsets = data[offset_column].dropna().astype(int).values
 
@@ -76,7 +76,9 @@ def get_normalized_rates(data, scale, onset_column, offset_column, order_column,
     last_touches = data[data[order_column] == max(data[order_column])][onset_column]
     smooth_distribution = get_uniform_cdf(min(first_touches), max(first_touches), min(last_touches), max(last_touches),
                                           scale)
-    smooth_distribution = smooth_distribution * len(first_touches)
+    if not n_trials:
+        n_trials = len(first_touches)
+    smooth_distribution = smooth_distribution * n_trials
     movement_rate_raw, movement_rate, scale = causal_rate(offsets, analysis_parameter_dict['window_start'],
                                                           analysis_parameter_dict['window_end'], smooth_distribution)
     return movement_rate_raw, movement_rate, scale

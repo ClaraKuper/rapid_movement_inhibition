@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
-from src.helper_funcs import save_dict_as_table, fit_sigmoid_func, get_average_rates, smooth_array
-from src.movement_rates import get_movement_rates_by_participant
+from src.helper_funcs import save_dict_as_table, fit_sigmoid_func, get_average_rates, smooth_array, \
+    compute_distance_pythagoras, scale_value_by_dict, add_min_label
+from src.movement_rates import get_movement_rates_by_participant, get_normalized_rates
 from src.trial_by_trial_analysis import set_timings
 from src.touch_position import get_fitted_responses
 from src.json_parsing import set_data_type
@@ -54,7 +55,7 @@ def analysis_position(data, x_col, y_col, target_x_col, target_y_col, x_full_len
                       params, dependent_vars, independent_vars_dict, metrics_out_file, data_type_dict, figure_height=6):
     axs = make_figure_rates(figure_height, dependent_vars)
     data = set_data_type(data, data_type_dict)
-    smoothed_response_positions, position_response_dictionary, scale = get_fitted_responses(data, x_full_length,
+    smoothed_response_positions, position_response_dictionary, scale, data = get_fitted_responses(data, x_full_length,
                                                                                             y_full_length, x_col, y_col,
                                                                                             target_x_col, target_y_col,
                                                                                             pix2deg_by_name,
@@ -69,6 +70,8 @@ def analysis_position(data, x_col, y_col, target_x_col, target_y_col, x_full_len
                       condition_color_dict, 0.95, axs['main'], plot_average_participant_position)
     plot_metrics(metrics, dependent_vars, axs, condition_color_dict)
     run_ttests(metrics, dependent_vars, independent_vars_dict)
+
+    return data
 
 
 def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict, baseline_condition_dict, color_dict,
@@ -110,6 +113,61 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
 
     make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, color_dict, figure_name)
     return time, dictionary
+
+
+def landing_position_analysis(data, x_touch, y_touch, x_dot_first, y_dot_first, x_dot_second, y_dot_second, pix2deg_dict,
+                              analysis_parameter_dict, onset_column, offset_column, order_column, participant_column,
+                              condition_color_dict, figure_path):
+
+    data['mid_position_x'] = np.mean([data[x_dot_first], data[x_dot_second]], axis=0)
+    data['mid_position_y'] = np.mean([data[y_dot_first], data[y_dot_second]], axis=0)
+
+    data['distance_new'] = compute_distance_pythagoras(data[x_touch], data[x_dot_second],
+                                                       data[y_touch], data[y_dot_second])
+    data['distance_new_dva'] = scale_value_by_dict(data, 'distance_new', 'subject', pix2deg_dict)
+
+    data['distance_old'] = compute_distance_pythagoras(data[x_touch], data[x_dot_first],
+                                                       data[y_touch], data[y_dot_first])
+    data['distance_old_dva'] = scale_value_by_dict(data, 'distance_old', 'subject', pix2deg_dict)
+
+    data['distance_middle'] = compute_distance_pythagoras(data[x_touch], data['mid_position_x'],
+                                                          data[y_touch], data['mid_position_y'])
+    data['distance_middle_dva'] = scale_value_by_dict(data, 'distance_middle', 'subject', pix2deg_dict)
+
+    labels = ['distance_old_dva', 'distance_middle_dva', 'distance_new_dva']
+    closest_col_name = 'closest_target'
+
+    data = data.reset_index(drop=True)
+    data = add_min_label(data, labels, closest_col_name)
+
+    participants = np.unique(data[participant_column])
+    ref_scale = np.arange(analysis_parameter_dict['window_start'], analysis_parameter_dict['window_end'], 1)
+    movement_rates = {}
+    labels = np.unique(data[closest_col_name])
+
+    for p in participants:
+        movement_rates[p] = {}
+        p_data = data[data[participant_column] == p].reset_index(drop=True)
+        for idx, label in enumerate(labels):
+            label_data = p_data[p_data[closest_col_name] == label]
+            movement_rate_raw, movement_rate, scale = get_normalized_rates(label_data, ref_scale, onset_column,
+                                                                           offset_column, order_column,
+                                                                           analysis_parameter_dict, len(p_data) / 6)
+            movement_rates[p][label] = movement_rate
+
+    fig, axs = plt.subplots(1, 1)
+
+    get_average_rates(movement_rates,
+                      scale,
+                      labels,
+                      {},
+                      condition_color_dict,
+                      0.95, axs,
+                      plot_average_participant_rates)
+
+    axs.set_xlim([-500, 800])
+
+    plt.savefig(figure_path)
 
 
 def run_anovas(dependent_vars, independent_vars, data, group):

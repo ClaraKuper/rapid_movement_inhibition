@@ -91,3 +91,12 @@ def get_average_rates(rates, scale, conditions, parameters, condition_color_dict
 
     plotting_func(rates_dict, ci_dict, scale, parameters, condition_color_dict, axs)
     # return rates_dict, scale
+
+
+def add_min_label(data, labels, new_col_name):
+    closest = []
+    for idx in data.index:
+        position_min = np.argmin(data.loc[idx, labels])
+        closest.append(labels[position_min])
+    data[new_col_name] = closest
+    return data
