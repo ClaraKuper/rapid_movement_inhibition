@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <title>Template Resize Function</title>
+    <link rel="stylesheet" type="text/css" href="jspsych-6.3.1/css/jspsych.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+
+<body>
+<script>
+
+    document.querySelector('html').style.height = '100%';
+    document.querySelector('body').style.margin = '0px';
+    document.querySelector('body').style.height = '100%';
+    document.querySelector('body').style.width = '100%';
+    let display_element = document.querySelector('body');
+    let adjust_size = 20;
+    let adjustment_prompt = 'This is the adjustment prompt';
+    let adjustment_button_prompt = 'This is the adjustment button prompt';
+    // adapted function from virtual chinrest
+
+    // Todo: replace the div with the id "item" with your credit card div. The id must remain the same.
+    let pagesize_content = `
+          <div id="page-size">
+            <div id="item" style="border: none; height: ${200}px; width: ${350}px; margin: 5px auto; background-color: grey; position: relative; background-size: 100% auto; background-repeat: no-repeat;">
+              <div id="jspsych-resize-handle" style="cursor: nwse-resize; background-color: none; width: ${adjust_size}px; height: ${adjust_size}px; border: 5px solid red; border-left: 0; border-top: 0; position: absolute; bottom: 0; right: 0;">
+              </div>
+            </div>
+            ${adjustment_prompt}
+            <button id="end_resize_phase" class="jspsych-btn">
+              ${adjustment_button_prompt}
+            </button>
+          </div>
+        `
+
+    startResizeLaura();
+
+    function startResizeLaura() {
+        // the display element will be defined
+        display_element.innerHTML = pagesize_content;
+
+        // you can access the element to be resized with this
+        const scale_div = display_element.querySelector("#item");
+
+       function touchendevent(event){
+           // Todo: define what happens when the user stops touching the screen
+       }
+       document.addEventListener('touchend', touchendevent);
+
+        // Define event listeners that enable resizing on touch
+       function touchstartevent(event){
+           // Todo: define what happens when the user start touching the resize handle
+       }
+       document.querySelector("#jspsych-resize-handle").addEventListener("touchstart", touchstartevent);
+
+       function resizeevent(event){
+           // Todo: define what happens if the hand moves around on the screen
+       }
+       document.addEventListener('touchmove', resizeevent);
+
+       display_element.querySelector("#end_resize_phase").addEventListener("click", checkResizeValidity);
+
+    }
+
+    function checkResizeValidity(){
+        // todo: check the ratio of the credit card width and height
+        if (true){
+            // go on if this is fine
+            finishResizePhase();
+        } else {
+            // repeat if it was not fine
+            startResizeLaura();
+        }
+    }
+
+    function finishResizePhase(){
+        console.log(document.querySelector('#item').getBoundingClientRect().width);
+    }
+
+    // The rest of the script will read out the size of the rescaled object and run all other computations.
+
+</script>
+</body>
+</html>

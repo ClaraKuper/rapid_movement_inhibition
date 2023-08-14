@@ -1,0 +1,114 @@
+<!doctype html>
+<!-- Example taken from http://www.jspsych.org/tutorials/rt-task/ and adapted for the use with JATOS -->
+<html lang="en">
+
+<head>
+    <title>Final Questionaire</title>
+    <!-- If you use an older version of JATOS (< 3.3.1) you have to use absolutes path for you assets and jatos.js-->
+    <script src="jspsych-6.3.1/jspsych.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-instructions.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-survey-likert.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-survey-text.js"></script>
+    <script src="jspsych-6.3.1/plugins/jspsych-html-button-response.js"></script>
+    <script src="jatos.js"></script>
+    <link rel="stylesheet" type="text/css" href="jspsych-6.3.1/css/jspsych.css">
+    <!-- below, we prevent scaling and marking -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+
+<body bgcolor='gray'>
+<script>
+
+    // salute the hacker
+    console.log("Oh, Oh, Oh, I'm on vacation, every single day ...");
+
+    // create arrays
+    let scale = ["Terrible", "Somewhat Terrible", "Neutral", "Somewhat Enjoyable", "Enjoyable"];
+
+    // check on any other comments
+    let name = {
+        type: 'survey-text',
+        questions: [
+            {
+                prompt: "Do you want to tell me your name?",
+                placeholder: "Type it here or leave this blank."
+            },
+        ],
+        data: {
+            test_part: 'outro_name'
+        },
+    };
+    timeline.push(name);
+
+    // check for ux
+    let ux_rating = {
+        type: 'survey-likert',
+        questions: [
+            {
+                prompt: "<p>Please rate your user experience.</p>",
+                name: 'UX',
+                labels: scale,
+                required: true
+            }
+        ],
+        choices: ['Submit answer'],
+        data: {
+            test_part: 'outro_concentration',
+        },
+    };
+    timeline.push(ux_rating);
+
+    // check on any other comments
+    let comments = {
+        type: 'survey-text',
+        questions: [
+            {
+                prompt: "Did you notice something during the experiment that you'd like to share?",
+                placeholder: "Type your answer here."
+            },
+        ],
+        data: {
+            test_part: 'outro_comments'
+        },
+    };
+    timeline.push(comments);
+
+    /* define debrief */
+    // end the experiment regularly
+    let debrief_block = {
+        type: "html-button-response",
+        stimulus: "<p>Thanks for your participation!</p>",
+        choices: [],
+        button_html: [],
+        trial_duration: 1000,
+        data: {
+            test_part: 'outro_bye',
+        },
+
+    };
+    timeline.push(debrief_block);
+
+
+    /* start the experiment */
+    jatos.onLoad(function () {
+
+        jsPsych.data.addProperties({
+            subject: jatos.workerId,
+            component: 'Outro_General',
+        });
+
+
+        jsPsych.init({
+            timeline: timeline,
+            fullscreen: true,
+            on_finish: function () {
+                let resultJson = jsPsych.data.get().json();
+                jatos.submitResultData(resultJson, jatos.startNextComponent);
+            },
+        });
+    });
+</script>
+</body>
+
+
+</html>

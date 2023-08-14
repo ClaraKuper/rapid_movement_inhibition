@@ -1,0 +1,85 @@
+<!doctype html>
+<!-- Example taken from http://www.jspsych.org/tutorials/rt-task/ and adapted for the use with JATOS -->
+<html lang="en">
+
+<head>
+    <title>Check Serial Dots</title>
+    <!-- If you use an older version of JATOS (< 3.3.1) you have to use absolutes path for you assets and jatos.js-->
+    <script src="jspsych-6.3.1/jspsych.js"></script>
+    <!-- custom scripts -->
+    <script src="jspsych-6.3.1/plugins/canvas-manual-inhibition-serial.js"></script>
+    <script src="jspsych-6.3.1/plugins/test_screen_refresh_rate.js"></script>
+    <script src="common_funcs.js"></script>
+
+    <!-- jatos import -->
+    <!-- script src="jatos.js"></script-->
+    <!-- css import -->
+    <link href="jspsych-6.3.1/css/jspsych.css" rel="stylesheet" type="text/css">
+    <link href="custom_styles.css" rel="stylesheet" type="text/css">
+    <!-- meta prevents zooming in -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+</head>
+
+<body>
+
+<script>
+
+    // salute the hacker
+    console.log("Started serial canvas check!");
+
+    let timeline = [];
+    let refresh_rate;
+
+    // start measuring the refresh rate
+    let measure_refresh_rate = {
+        type: "screen-refresh-test",
+        trialDuration: 2000,
+        on_finish: function(data){
+            refresh_rate = data.refresh_rate;
+        }
+    }
+    //timeline.push(measure_refresh_rate);
+
+    let check_this_canvas = {
+        type: "canvas-mi-serial",
+        //refresh_rate: function(){return refresh_rate},
+        target_pos_x: [-205, -165, -113, -52, 61, 113, 172, 190],
+        target_pos_y: [2, 31, 21, -60, 32, -98, -12, 23],
+        shifted_target_pos_x: [205, 165, 113, 52, -61, -113, -172, -190],
+        shifted_target_pos_y: [-2, -31, -21, 60, -32, 98, 12, -23],
+        trial_duration: 5000,
+    };
+    // timeline.push(check_this_canvas);
+
+    let node = {
+        timeline: [check_this_canvas],
+        repetitions: 50
+    }
+    timeline.push(node)
+
+    /* start the experiment */
+    // load jatos - I can use jatos functions after this line
+    //jatos.onLoad(function () {
+        //jatos.uploadResultFile(timelineVariables, "allTimelineVariables.json");
+        jsPsych.data.addProperties({
+           // subject: jatos.workerId, // id of the subject
+            component: 'canvas_check', // name the component
+        });
+
+        jsPsych.init({
+            timeline: timeline, // use the timeline to run the experiment
+            on_finish: function () {
+                // once the code has run: save the results and call the next jatos component
+                let resultCSV = jsPsych.data.get().csv()
+                jsPsych.data.get().localSave('csv', 'results_file_localtest');
+                //jatos.uploadResultFile(resultCSV, 'results.csv');
+                //jatos.submitResultData(resultCSV, jatos.startNextComponent);
+            }
+        });
+   // });
+</script>
+</body>
+
+
+</html>

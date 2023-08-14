@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <title>Template Resize Function</title>
+    <link rel="stylesheet" type="text/css" href="jspsych-6.0.4/css/jspsych.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="credit_card_styles.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+<script>
+
+    document.querySelector('html').style.height = '100%';
+    document.querySelector('body').style.margin = '0px';
+    document.querySelector('body').style.height = '100%';
+    document.querySelector('body').style.width = '100%';
+    let display_element = document.querySelector('body');
+    let adjust_size = 20;
+    let adjustment_prompt = 'Click the button on the side to fix the size of the credit card';
+    let adjustment_button_prompt = 'Fix card size';
+    let creditCardRatio = 8.56/5.397;
+    var message = false;
+    // adapted function from virtual chinrest
+
+
+    str_rect = '<div class="box" id="rect"><div class="chip"></div><div class="number"><h>0000 0000 0000 0000</h></div></div>'
+
+    // Todo: replace the div with the id "item" with your credit card div. The id must remain the same.
+    let pagesize_content = `
+          <div id="page-size">
+            <div class="box" id="item"><div class="chip"></div><div class="number"><h>0000 0000 0000 0000</h></div>
+              <div id="jspsych-resize-handle" style="cursor: nwse-resize; background-color: none; width: ${adjust_size}px; height: ${adjust_size}px; border: 5px solid red; border-left: 0; border-top: 0; position: absolute; bottom: 0; right: 0;">
+              </div>
+            </div>
+            ${adjustment_prompt}
+            <button id="end_resize_phase" class="jspsych-btn">
+              ${adjustment_button_prompt}
+            </button>
+          </div>
+        `
+
+    startResizeLaura();
+
+    function startResizeLaura() {
+        // the display element will be defined
+        display_element.innerHTML = pagesize_content;
+        if (message){
+            display_element.innerHTML += "<p class='p1' align='center' id='invalid_card'>This doesn't look like a credit card yet!</p>";
+        }
+
+        let dragging = false;
+        let origin_x, origin_y;
+        let cx, cy;
+        // you can access the element to be resized with this
+        const scale_div = display_element.querySelector("#item");
+
+       function touchendevent(event){
+           // Todo: define what happens when the user stops touching the screen
+           dragging = false;
+       }
+       document.addEventListener('touchend', touchendevent);
+       document.addEventListener("mouseup", touchendevent);
+
+        // Define event listeners that enable resizing on touch
+       function touchstartevent(event){
+           // Todo: define what happens when the user start touching the resize handle
+            event.preventDefault();
+            dragging = true;
+            origin_x = event.x || event.pageX || event.touches[0].clientX;
+            origin_y = event.y || event.pageY || event.touches[0].clientY;
+            cx = parseInt(document.querySelector('#item').getBoundingClientRect().width);
+            cy = parseInt(document.querySelector('#item').getBoundingClientRect().height);
+        
+       }
+       document.querySelector("#jspsych-resize-handle").addEventListener("touchstart", touchstartevent);
+       document.querySelector("#jspsych-resize-handle").addEventListener("mousedown", touchstartevent);
+
+
+       function resizeevent(event){
+           // Todo: define what happens if the hand moves around on the screen
+            if (dragging) {
+                let newx = event.x || event.pageX || event.touches[0].clientX;
+                let newy = event.y || event.pageY || event.touches[0].clientY;
+                let dx = newx - origin_x;
+                let dy = newy - origin_y;
+                   
+                document.querySelector('#item').setAttribute("style","width:"+String(cx+dx)+"px; height:"+String(cy+dy)+"px");
+        }
+      }
+       document.addEventListener('touchmove', resizeevent);
+       document.addEventListener("mousemove", resizeevent);
+
+       display_element.querySelector("#end_resize_phase").addEventListener("click", checkResizeValidity);
+
+    }
+
+    function checkResizeValidity(){
+        const item_width_px = document.querySelector('#item').getBoundingClientRect().width;
+        const item_height_px = document.querySelector('#item').getBoundingClientRect().height;
+
+        let currRatio = item_width_px/item_height_px;
+
+        if (currRatio > 1.1*creditCardRatio || currRatio < 0.9*creditCardRatio){
+            // repeat if wrong
+            message = true;
+            startResizeLaura();
+        } else {
+            // if fine then..
+            if (message){
+                document.getElementById('invalid_card').remove();
+        }
+            
+            finishResizePhase();
+            display_element.innerHTML += "<p class='p1' align='center'>Thank you!! </p>";
+        }
+    }
+
+    function finishResizePhase(){
+        console.log(document.querySelector('#item').getBoundingClientRect().width);
+        console.log(document.querySelector('#item').getBoundingClientRect().height);
+    }
+
+    // The rest of the script will read out the size of the rescaled object and run all other computations.
+
+</script>
+</body>
+</html>
