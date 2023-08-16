@@ -111,7 +111,7 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
                 dictionary[p][cond][col] = val
                 dictionary[p][cond][f'{col}_diff'] = np.array(val) - np.array(base_val)
 
-    make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, color_dict, figure_name)
+    make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, color_dict, figure_name, participant_col)
     return time, dictionary
 
 

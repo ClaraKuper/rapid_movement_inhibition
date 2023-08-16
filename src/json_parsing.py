@@ -8,7 +8,7 @@ def format_and_save_data_multiple_participants(input_path, output_path, filter_d
                                                length_dict, explode_lists, set_time_cols,
                                                relative_to_cols, remove_false_cols, outlier_dict, format_dict):
     if os.path.isfile(output_path):
-        data = pd.read_csv(output_path, index_col=0)
+        data = pd.read_csv(output_path)
     else:
         data = save_json_as_csv(input_path, output_path)
         data = filter_data(data, filter_dict)
@@ -129,4 +129,21 @@ def test_file_equality(new_file, test_file):
 def set_data_type(data, dictionary):
     for key in dictionary:
         data[key] = data[key].astype(dictionary[key])
+    return data
+
+def add_participant_id(data, dictionary, col_name, condition_letter, id_col_name, ses_col_name, participant_letter = 'P'):
+    for s in dictionary:
+        p_number = dictionary[s].upper().split(condition_letter)[0]
+        try:
+            s_number = dictionary[s].upper().split(condition_letter)[1]
+        except IndexError:
+            s_number = 0
+
+        try:
+            final_number = p_number.split(participant_letter)[1]
+        except IndexError:
+            final_number = p_number.split(participant_letter)[0]
+
+        data.loc[data[col_name] == s, id_col_name] = int(final_number)
+        data.loc[data[col_name] == s, ses_col_name] = int(s_number)
     return data

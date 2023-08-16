@@ -132,7 +132,7 @@ def create_double_color_cols(data, col_1, col_2, base_colors, drop_per_id):
     return data, new_col_name, dict_colors
 
 
-def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_dict, figure_name):
+def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_dict, figure_name, participant_id = 'prolific_id'):
     condition_name = conditions.keys()
     figure, axs = plt.subplots(2, 3, sharex='all', sharey='row', figsize=(9, 4))
     axs[0, int(len(conditions) / 2)].set_xlabel('movement onset since event [ms]')
@@ -162,7 +162,7 @@ def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_
 
         trial_copy, new_col_name, color_dict_hist = create_double_color_cols(cond_data.copy(deep=True),
                                                                              'choiceOrder',
-                                                                             'prolific_id',
+                                                                             participant_id,
                                                                              ['AE43C7', 'FF3CC7', 'F0F600',
                                                                               '00E5E8', '007C77', '007C77'],
                                                                              0.05)
