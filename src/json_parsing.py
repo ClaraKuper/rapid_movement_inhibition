@@ -6,11 +6,13 @@ import pandas as pd
 
 def format_and_save_data_multiple_participants(input_path, output_path, filter_dict,
                                                length_dict, explode_lists, set_time_cols,
-                                               relative_to_cols, remove_false_cols, outlier_dict, format_dict):
-    if os.path.isfile(output_path):
+                                               relative_to_cols, remove_false_cols, outlier_dict,
+                                               format_dict, force_save_new = False):
+    if os.path.isfile(output_path) and not force_safe_new:
         data = pd.read_csv(output_path)
     else:
         data = save_json_as_csv(input_path, output_path)
+
         data = filter_data(data, filter_dict)
         data = adjust_format(data, length_dict=length_dict, expand_lists=explode_lists)
         relative_key = '_relative'
