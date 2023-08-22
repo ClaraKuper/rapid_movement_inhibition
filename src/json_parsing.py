@@ -62,11 +62,16 @@ def load_json(file):
     return data
 
 
-def filter_data(data, dictionary):
+def filter_data(data, dictionary, return_index = False):
     for key in dictionary:
         data = data[data[key] == dictionary[key]]
-    data = data.dropna(axis=1, how='all').reset_index(drop=True)
-    return data
+    data = data.dropna(axis=1, how='all')
+    index = data.index
+    data = data.reset_index(drop=True)
+    if return_index:
+        return data, index
+    else:
+        return data
 
 
 def adjust_format(data, length_dict, expand_lists):

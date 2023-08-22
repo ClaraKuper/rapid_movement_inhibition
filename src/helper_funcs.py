@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import pandas as pd
 import scipy.stats as st
@@ -99,4 +100,27 @@ def add_min_label(data, labels, new_col_name):
         position_min = np.argmin(data.loc[idx, labels])
         closest.append(labels[position_min])
     data[new_col_name] = closest
+    return data
+
+def rotate(origin, point, angle):
+    # angle in radians
+    ox, oy = origin
+    px, py = point
+
+    qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+    qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+    return qx, qy
+
+
+def get_position_relative(data, origin, point, name_appendix):
+    data[f'{name_appendix}_{point}'] = data[point] - data[origin]
+    return data
+
+def scramble_columns_piecewise(data, scramble_column, piecewise, name_scrambled):
+    for piece in np.unique(data[piecewise]):
+        values_to_scramble = data[data[piecewise] == piece][scramble_column].values
+        index = data[data[piecewise] == piece].index
+        np.random.shuffle(values_to_scramble)
+        data.loc[index, name_scrambled] = values_to_scramble
+
     return data
