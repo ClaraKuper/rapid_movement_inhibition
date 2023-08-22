@@ -117,10 +117,10 @@ def get_position_relative(data, origin, point, name_appendix):
     return data
 
 def scramble_columns_piecewise(data, scramble_column, piecewise, name_scrambled):
+    data = data.reset_index(drop = True)
     for piece in np.unique(data[piecewise]):
         values_to_scramble = data[data[piecewise] == piece][scramble_column].values
-        index = data[data[piecewise] == piece].index
+        idx = data[data[piecewise] == piece].index
         np.random.shuffle(values_to_scramble)
-        data.loc[index, name_scrambled] = values_to_scramble
-
+        data.loc[idx, name_scrambled] = values_to_scramble
     return data

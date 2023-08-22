@@ -1,15 +1,16 @@
+import math
 import matplotlib.pyplot as plt
-from src.helper_funcs import save_dict_as_table, fit_sigmoid_func, get_average_rates, smooth_array, \
-    compute_distance_pythagoras, scale_value_by_dict, add_min_label
+import numpy as np
+import src.helper_funcs as helper
 from src.movement_rates import get_movement_rates_by_participant, get_normalized_rates
 from src.trial_by_trial_analysis import set_timings
 from src.touch_position import get_fitted_responses
-from src.json_parsing import set_data_type
+from src.json_parsing import set_data_type, filter_data
 from src.plotting import make_figure_rates, plot_metrics,  plot_average_participant_rates, \
     plot_average_participant_position, make_delay_figure
 from statsmodels.stats.anova import AnovaRM
 from scipy.stats import ttest_rel
-import numpy as np
+
 
 
 def analysis_rates(data, onset_column, offset_column, participant_column, analysis_parameter_dict, order_column,
@@ -34,15 +35,15 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
                                                                    order_column,
                                                                    conditions_dict,
                                                                    condition_color_dict)
-    metrics = save_dict_as_table(rate_metrics, metrics_out_file, participant_column)
-    get_average_rates(rates,
-                      scale,
-                      conditions_dict,
-                      rate_metrics,
-                      condition_color_dict,
-                      0.95,
-                      axs['main'],
-                      plot_average_participant_rates)
+    metrics = helper.save_dict_as_table(rate_metrics, metrics_out_file, participant_column)
+    helper.get_average_rates(rates,
+                             scale,
+                             conditions_dict,
+                             rate_metrics,
+                             condition_color_dict,
+                             0.95,
+                             axs['main'],
+                             plot_average_participant_rates)
 
     plot_metrics(metrics, dependent_vars, axs, condition_color_dict)
     plt.savefig(metrics_figure_file)
@@ -63,11 +64,11 @@ def analysis_position(data, x_col, y_col, target_x_col, target_y_col, x_full_len
                                                                                             participant_col,
                                                                                             condition_dictionary,
                                                                                             time_col_name, params,
-                                                                                            fit_sigmoid_func)
+                                                                                            helper.fit_sigmoid_func)
 
-    metrics = save_dict_as_table(position_response_dictionary, metrics_out_file, participant_col)
-    get_average_rates(smoothed_response_positions, scale, condition_dictionary, position_response_dictionary,
-                      condition_color_dict, 0.95, axs['main'], plot_average_participant_position)
+    metrics = helper.save_dict_as_table(position_response_dictionary, metrics_out_file, participant_col)
+    helper.get_average_rates(smoothed_response_positions, scale, condition_dictionary, position_response_dictionary,
+                             condition_color_dict, 0.95, axs['main'], plot_average_participant_position)
     plot_metrics(metrics, dependent_vars, axs, condition_color_dict)
     run_ttests(metrics, dependent_vars, independent_vars_dict)
 
@@ -103,10 +104,10 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
                 feat_data = feat_data.reset_index(drop=True)
 
             for col in plot_column_dict:
-                val = [smooth_array(feat_data[plot_column_dict[col]], feat_data[time_column], smooth_window_size, t) for
+                val = [helper.smooth_array(feat_data[plot_column_dict[col]], feat_data[time_column], smooth_window_size, t) for
                        t in time]
                 base_val = [
-                    smooth_array(p_base_data[plot_column_dict[col]], p_base_data[time_column], smooth_window_size, t)
+                    helper.smooth_array(p_base_data[plot_column_dict[col]], p_base_data[time_column], smooth_window_size, t)
                     for t in time]
                 dictionary[p][cond][col] = val
                 dictionary[p][cond][f'{col}_diff'] = np.array(val) - np.array(base_val)
@@ -122,23 +123,23 @@ def landing_position_analysis(data, x_touch, y_touch, x_dot_first, y_dot_first, 
     data['mid_position_x'] = np.mean([data[x_dot_first], data[x_dot_second]], axis=0)
     data['mid_position_y'] = np.mean([data[y_dot_first], data[y_dot_second]], axis=0)
 
-    data['distance_new'] = compute_distance_pythagoras(data[x_touch], data[x_dot_second],
+    data['distance_new'] = helper.compute_distance_pythagoras(data[x_touch], data[x_dot_second],
                                                        data[y_touch], data[y_dot_second])
-    data['distance_new_dva'] = scale_value_by_dict(data, 'distance_new', 'subject', pix2deg_dict)
+    data['distance_new_dva'] = helper.scale_value_by_dict(data, 'distance_new', 'subject', pix2deg_dict)
 
-    data['distance_old'] = compute_distance_pythagoras(data[x_touch], data[x_dot_first],
+    data['distance_old'] = helper.compute_distance_pythagoras(data[x_touch], data[x_dot_first],
                                                        data[y_touch], data[y_dot_first])
-    data['distance_old_dva'] = scale_value_by_dict(data, 'distance_old', 'subject', pix2deg_dict)
+    data['distance_old_dva'] = helper.scale_value_by_dict(data, 'distance_old', 'subject', pix2deg_dict)
 
-    data['distance_middle'] = compute_distance_pythagoras(data[x_touch], data['mid_position_x'],
+    data['distance_middle'] = helper.compute_distance_pythagoras(data[x_touch], data['mid_position_x'],
                                                           data[y_touch], data['mid_position_y'])
-    data['distance_middle_dva'] = scale_value_by_dict(data, 'distance_middle', 'subject', pix2deg_dict)
+    data['distance_middle_dva'] = helper.scale_value_by_dict(data, 'distance_middle', 'subject', pix2deg_dict)
 
     labels = ['distance_old_dva', 'distance_middle_dva', 'distance_new_dva']
     closest_col_name = 'closest_target'
 
     data = data.reset_index(drop=True)
-    data = add_min_label(data, labels, closest_col_name)
+    data = helper.add_min_label(data, labels, closest_col_name)
 
     participants = np.unique(data[participant_column])
     ref_scale = np.arange(analysis_parameter_dict['window_start'], analysis_parameter_dict['window_end'], 1)
@@ -157,17 +158,76 @@ def landing_position_analysis(data, x_touch, y_touch, x_dot_first, y_dot_first, 
 
     fig, axs = plt.subplots(1, 1)
 
-    get_average_rates(movement_rates,
-                      scale,
-                      labels,
-                      {},
-                      condition_color_dict,
-                      0.95, axs,
-                      plot_average_participant_rates)
+    helper.get_average_rates(movement_rates,
+                             scale,
+                             labels,
+                             {},
+                             condition_color_dict,
+                             0.95, axs,
+                             plot_average_participant_rates)
 
     axs.set_xlim([-500, 800])
 
     plt.savefig(figure_path)
+
+
+def response_density_analysis(data, condition_dict,
+                              window_center_name, touch_name,
+                              position_name, origin_name,
+                              dimensions, point_angle_deg,
+                              column_names_to_align):
+    center_name = 'centered'
+    relative_name = 'relative'
+    rotated_name = 'rotated'
+    between_angle_name = 'angle_between_targets'
+    transform_angle_name = 'transform_angle'
+    scaled_touch_name = 'scaled_touch_distance'
+
+    data = data.reset_index(drop = True)
+
+    for condition in condition_dict:
+        condition_data, condition_index = filter_data(data, condition_dict[condition], return_index=True)
+        # align x and y touch position to screen center
+        for dim in dimensions:
+            window_dim_name = f'{window_center_name}_{dim}'
+            touch_dim_name = f'{touch_name}_{dim}'
+            condition_data = helper.get_position_relative(condition_data, window_dim_name, touch_dim_name, center_name)
+
+        # get angle in radians between the two dots
+        condition_data[between_angle_name] = [(math.atan2(
+            condition_data[f'{position_name}_y'].values[i] - condition_data[f'{origin_name}_y'].values[i],
+            condition_data[f'{position_name}_x'].values[i] - condition_data[f'{origin_name}_x'].values[i])) for i in
+            range(len(condition_data))]
+
+        # compute how much we need to turn everything to align all dots to
+        condition_data[transform_angle_name] = -1 * condition_data[between_angle_name] + math.radians(point_angle_deg)
+
+        # get all positions relative to the origin
+        for dim in dimensions:
+            origin_col = f'{origin_name}_{dim}'
+            column_dims_to_align = [f'{col}_{dim}' for col in column_names_to_align]
+            for point_column in column_dims_to_align:
+                condition_data = helper.get_position_relative(condition_data, origin_col, point_column, relative_name)
+
+        # rotate the shifted dots
+        rotate_column_names = [position_name, f'{center_name}_{touch_name}']
+        for rotate_column in rotate_column_names:
+
+            for idx in condition_data.index:
+                origin = [condition_data[f'{relative_name}_{origin_name}_x'][idx],
+                          condition_data[f'{relative_name}_{origin_name}_y'][idx]]
+                point = [condition_data[f'{relative_name}_{rotate_column}_x'][idx],
+                         condition_data[f'{relative_name}_{rotate_column}_y'][idx]]
+                rad = condition_data[transform_angle_name][idx]
+                rotx, roty = helper.rotate(origin, point, rad)
+                condition_data.loc[idx, f'rotated_{rotate_column}_x'] = rotx
+                condition_data.loc[idx, f'rotated_{rotate_column}_y'] = roty
+
+        # scale x component of the touch by x component of the dots
+        condition_data[scaled_touch_name] = condition_data[f'rotated_{center_name}_{touch_name}_x'] / condition_data[
+            f'rotated_{position_name}_x']
+        data.loc[condition_index, scaled_touch_name] = condition_data[scaled_touch_name].values
+    return data
 
 
 def run_anovas(dependent_vars, independent_vars, data, group):
