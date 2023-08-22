@@ -7,11 +7,28 @@ import pandas as pd
 def format_and_save_data_multiple_participants(input_path, output_path, filter_dict,
                                                length_dict, explode_lists, set_time_cols,
                                                relative_to_cols, remove_false_cols, outlier_dict,
-                                               format_dict, force_save_new = False):
-    if os.path.isfile(output_path) and not force_safe_new:
+                                               format_dict, incomplete_session_paths,
+                                               extra_session_path = '',
+                                               force_save_new = False):
+    if os.path.isfile(output_path) and not force_save_new:
         data = pd.read_csv(output_path)
     else:
+        # load the main session
         data = save_json_as_csv(input_path, output_path)
+
+        # load incomplete data
+        for session_file in incomplete_session_paths:
+            extra_data = load_json(session_file)
+            data = pd.concat([data, extra_data])
+            data = data.reset_index(drop=True)
+            # print(f'participant:{np.unique(extra_data.prolific_id)}\n '
+            #      f'session: {np.unique(extra_data.session_number)}\n '
+            #      f'session code: {session}\n ')
+        # load extra data
+        if not extra_session_path == '':
+            extra_data = load_json(extra_session_path)
+            data = pd.concat([data, extra_data])
+            data = data.reset_index(drop=True)
 
         data = filter_data(data, filter_dict)
         data = adjust_format(data, length_dict=length_dict, expand_lists=explode_lists)
