@@ -116,11 +116,18 @@ def get_position_relative(data, origin, point, name_appendix):
     data[f'{name_appendix}_{point}'] = data[point] - data[origin]
     return data
 
-def scramble_columns_piecewise(data, scramble_column, piecewise, name_scrambled):
+def scramble_columns_piecewise(data, scramble_column, piecewise, name_scrambled, session_name):
     data = data.reset_index(drop = True)
-    for piece in np.unique(data[piecewise]):
-        values_to_scramble = data[data[piecewise] == piece][scramble_column].values
-        idx = data[data[piecewise] == piece].index
-        np.random.shuffle(values_to_scramble)
-        data.loc[idx, name_scrambled] = values_to_scramble
+    for s in np.unique(data[session_name]):
+        s_data = data[data[session_name] == s]
+        #print(s_data)
+        for piece in np.unique(data[piecewise]):
+            values_to_scramble = s_data[s_data[piecewise] == piece][scramble_column].values
+            idx = s_data[s_data[piecewise] == piece].index
+            np.random.shuffle(values_to_scramble)
+            data.loc[idx, name_scrambled] = values_to_scramble
+
+            #print(np.unique(data.loc[idx,piecewise]))
+            #print(min(values_to_scramble))
+            #print(max(values_to_scramble))
     return data

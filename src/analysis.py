@@ -1,6 +1,8 @@
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 import src.helper_funcs as helper
 from src.movement_rates import get_movement_rates_by_participant, get_normalized_rates
 from src.trial_by_trial_analysis import set_timings
@@ -9,7 +11,7 @@ from src.json_parsing import set_data_type, filter_data
 from src.plotting import make_figure_rates, plot_metrics,  plot_average_participant_rates, \
     plot_average_participant_position, make_delay_figure
 from statsmodels.stats.anova import AnovaRM
-from scipy.stats import ttest_rel
+from scipy.stats import ttest_rel, t, sem
 
 
 
@@ -175,7 +177,9 @@ def response_density_analysis(data, condition_dict,
                               window_center_name, touch_name,
                               position_name, origin_name,
                               dimensions, point_angle_deg,
-                              column_names_to_align):
+                              column_names_to_align, participant_col,
+                              parameters, x_value_col, ci):
+
     center_name = 'centered'
     relative_name = 'relative'
     rotated_name = 'rotated'
@@ -184,9 +188,10 @@ def response_density_analysis(data, condition_dict,
     scaled_touch_name = 'scaled_touch_distance'
 
     data = data.reset_index(drop = True)
-
+    density_maps = {}
     for condition in condition_dict:
         condition_data, condition_index = filter_data(data, condition_dict[condition], return_index=True)
+
         # align x and y touch position to screen center
         for dim in dimensions:
             window_dim_name = f'{window_center_name}_{dim}'
@@ -227,7 +232,63 @@ def response_density_analysis(data, condition_dict,
         condition_data[scaled_touch_name] = condition_data[f'rotated_{center_name}_{touch_name}_x'] / condition_data[
             f'rotated_{position_name}_x']
         data.loc[condition_index, scaled_touch_name] = condition_data[scaled_touch_name].values
-    return data
+
+    # get the position density per participant
+    y_value_col = scaled_touch_name
+    for p in np.unique(data[participant_col]):
+        p_data = data[data[participant_col] == p]
+        density_maps[p] = {}
+
+        for condition in condition_dict:
+            condition_data = filter_data(p_data, condition_dict[condition])
+            heatmap = pd.DataFrame()
+
+            total_x = abs(parameters['x_min']) + abs(parameters['x_max'])
+            window_width_x = total_x/parameters['n_col']
+
+            total_y = abs(parameters['y_min']) + abs(parameters['y_max'])
+            window_width_y = total_y / parameters['n_row']
+
+            for n_c in range(parameters['n_col']):
+                for n_r in range(parameters['n_row']):
+                    x_val = parameters['x_min'] + n_c * window_width_x
+                    y_val = parameters['y_min'] + n_r * window_width_y
+
+                    x_filtered = condition_data[condition_data[x_value_col].between(x_val, x_val + window_width_x)]
+                    y_filtered = x_filtered[x_filtered[y_value_col].between(y_val, y_val + window_width_y)]
+                    try:
+                        heatmap.loc[round(y_val, 5), round(x_val)] = len(y_filtered) / len(condition_data)
+                    except ZeroDivisionError:
+                        heatmap.loc[y_val, x_val] = 0
+            density_maps[p][condition] = heatmap
+        keys = [x for x in condition_dict.keys()]
+        density_maps[p]['diff'] = density_maps[p][keys[0]] - density_maps[p][keys[1]]
+
+    fig, axs = plt.subplots(1, 4, figsize = (25, 5), sharex=True, sharey=True)
+    cond_one = np.array([density_maps[p][keys[0]] for p in density_maps])
+    cond_two = np.array([density_maps[p][keys[1]] for p in density_maps])
+    cond_diff = np.array([density_maps[p]['diff'] for p in density_maps])
+
+    # confidence bounds
+    lower, upper = t.interval(confidence=ci, df=len(cond_diff) - 1, loc=np.mean(cond_diff, axis=0),
+                                 scale=sem(cond_diff, axis=0))
+    # mask
+    mask = pd.DataFrame(np.sign(lower) + np.sign(upper),
+                        columns=heatmap.columns, index=heatmap.index)
+
+    f1 = sns.heatmap(data = pd.DataFrame(np.mean(cond_one, axis = 0),
+                                         columns=heatmap.columns, index=heatmap.index),
+                     ax=axs[0], vmin = 0, vmax = 0.01)
+    f2 = sns.heatmap(data = pd.DataFrame(np.mean(cond_two, axis = 0),
+                                         columns=heatmap.columns, index=heatmap.index),
+                     ax=axs[1], vmin = 0, vmax = 0.01)
+    f3 = sns.heatmap(data = pd.DataFrame(np.mean(cond_diff, axis = 0),
+                                         columns=heatmap.columns, index=heatmap.index),
+                     ax=axs[2], vmin = -0.005, vmax = 0.005)
+
+    f4 = sns.heatmap(data = mask, ax=axs[3], vmin = -2, vmax = 2)
+
+    return density_maps
 
 
 def run_anovas(dependent_vars, independent_vars, data, group):
