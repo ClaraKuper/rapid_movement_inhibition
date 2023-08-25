@@ -1,8 +1,10 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import scipy.stats as st
+import src.helper_funcs as helper
 
 
 mpl.rcParams['axes.spines.right'] = False
@@ -132,9 +134,10 @@ def create_double_color_cols(data, col_1, col_2, base_colors, drop_per_id):
     return data, new_col_name, dict_colors
 
 
-def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_dict, figure_name, participant_id = 'prolific_id'):
+def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_dict, figure_name, heatmap_dict,
+                      figure_heatmap_name, participant_id = 'prolific_id'):
     condition_name = conditions.keys()
-    figure, axs = plt.subplots(2, 3, sharex='all', sharey='row', figsize=(9, 4))
+    figure, axs = plt.subplots(2, 3, sharex='all', sharey='row', figsize=(10, 3))
     axs[0, int(len(conditions) / 2)].set_xlabel('movement onset since event [ms]')
 
     current_axis = 0
@@ -152,31 +155,66 @@ def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_
             ci_lower, ci_upper = st.t.interval(confidence=0.95, df=len(vals) - 1,
                                                loc=mean_vals,
                                                scale=st.sem(vals))
-            axs[0, current_axis].plot(time, mean_vals, color=color_dict[t], label=cond)
-            axs[0, current_axis].fill_between(time, ci_lower, ci_upper, color=color_dict[t], alpha=0.2)
-            axs[0, current_axis].scatter(time[np.where(ci_lower > 0)],
-                                         np.ones(len(np.where(ci_lower > 0)[0])) * [190, 170][t == 'rest'],
-                                         color=color_dict[t])
+            axs[int(t == 'rest'), current_axis].plot(time, mean_vals, color=color_dict[cond], label=cond)
+            axs[int(t == 'rest'), current_axis].fill_between(time, ci_lower, ci_upper, color=color_dict[cond], alpha=0.2)
+            axs[int(t == 'rest'), current_axis].scatter(time[np.where(ci_lower > 0)],
+                                         np.ones(len(np.where(ci_lower > 0)[0])) * [190, 10][t == 'rest'],
+                                         color=color_dict[cond])
+
 
         axs[0, current_axis].set_title(cond)
 
-        trial_copy, new_col_name, color_dict_hist = create_double_color_cols(cond_data.copy(deep=True),
-                                                                             'choiceOrder',
-                                                                             participant_id,
-                                                                             ['AE43C7', 'FF3CC7', 'F0F600',
-                                                                              '00E5E8', '007C77', '007C77'],
-                                                                             0.05)
-        sns.histplot(data=trial_copy,
-                     x='touchOff_relative',
-                     hue=new_col_name,
-                     multiple='stack',
-                     palette=color_dict_hist,
-                     legend=False,
-                     edgecolor=None,
-                     ax=axs[1, current_axis])
+        #trial_copy, new_col_name, color_dict_hist = create_double_color_cols(cond_data.copy(deep=True),
+        #                                                                     'choiceOrder',
+        #                                                                     participant_id,
+        #                                                                     ['AE43C7', 'FF3CC7', 'F0F600',
+        #                                                                      '00E5E8', '007C77', '007C77'],
+        #                                                                     0.05)
+        #sns.histplot(data=trial_copy,
+        #             x='touchOff_relative',
+        #             hue=new_col_name,
+        #             multiple='stack',
+        #             palette=color_dict_hist,
+        #             legend=False,
+        #             edgecolor=None,
+        #             ax=axs[1, current_axis])
 
-        current_axis += 1
+        #current_axis += 1
 
     plt.tight_layout()
     plt.savefig(figure_name)
     plt.show()
+
+    current_axis = 0
+    heatmap_fig, heatmap_axs = plt.subplots(2,2, sharex='all', sharey='all', figsize = (5,3))
+    jumpflash = np.mean([heatmap_dict[p]['flash+ jump+'] for p in heatmap_dict], axis = 0)
+    jumpnoflash = np.mean([heatmap_dict[p]['flash- jump+'] for p in heatmap_dict], axis = 0)
+    nojumpflash = np.mean([heatmap_dict[p]['flash+ jump-'] for p in heatmap_dict], axis = 0)
+    nojumpnoflash = np.mean([heatmap_dict[p]['flash- jump-'] for p in heatmap_dict], axis = 0)
+
+    a = sns.heatmap(data = nojumpnoflash,
+                ax=heatmap_axs[0, current_axis], vmin=-0.005, vmax=0.02)
+
+    b = sns.heatmap(data=nojumpflash,
+                ax=heatmap_axs[1, current_axis], vmin=-0.005, vmax=0.02)
+
+    current_axis += 1
+
+    c = sns.heatmap(data=jumpnoflash,
+                    ax=heatmap_axs[0, current_axis], vmin = -0.005, vmax=0.02)
+
+    d = sns.heatmap(data=jumpflash,
+                    ax=heatmap_axs[1, current_axis], vmin = -0.005, vmax=0.02)
+
+    plt.tight_layout()
+    plt.savefig(figure_heatmap_name)
+
+
+
+def make_latency_heatmaps(heatmap_dict, conditions, save_path=None):
+    fig, axs = plt.subplots(nrows=len(heatmap_dict), ncols=len(conditions), figsize = (15, 30), sharex= True, sharey=True);
+    for row_idx, p in enumerate(heatmap_dict):
+        for col_idx, cond in enumerate(conditions):
+            hm = sns.heatmap(heatmap_dict[p][cond], vmin=.01, vmax=0.025, ax=axs[row_idx,col_idx]);
+    if save_path:
+        plt.savefig(save_path)

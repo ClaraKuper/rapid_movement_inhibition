@@ -9,7 +9,7 @@ from src.trial_by_trial_analysis import set_timings
 from src.touch_position import get_fitted_responses
 from src.json_parsing import set_data_type, filter_data
 from src.plotting import make_figure_rates, plot_metrics,  plot_average_participant_rates, \
-    plot_average_participant_position, make_delay_figure
+    plot_average_participant_position, make_delay_figure, make_latency_heatmaps
 from statsmodels.stats.anova import AnovaRM
 from scipy.stats import ttest_rel, t, sem
 
@@ -78,14 +78,16 @@ def analysis_position(data, x_col, y_col, target_x_col, target_y_col, x_full_len
 
 
 def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict, baseline_condition_dict, color_dict,
-                            participant_col, touch_on_col, touch_off_col, smooth_window_size, figure_name):
+                            participant_col, touch_on_col, touch_off_col, smooth_window_size, figure_name,
+                            heatmap_parameters, heatmap_figure_path, heatmap_individual_figure_path):
     participants = np.unique(data[participant_col])
     dictionary = {}
+    heatmap_dictionary = {}
     test_data = set_timings(data, touch_on_col, touch_off_col)
     test_data = test_data[test_data.choiceOrder != 0]
     test_data = test_data.reset_index(drop=True)
     time = np.arange(min(test_data[time_column]), max(test_data[time_column]))
-
+    all_base_heatmaps = []
     baseline_data = test_data.copy(deep=True)
     for base_feat in baseline_condition_dict:
         baseline_data = baseline_data[baseline_data[base_feat] == baseline_condition_dict[base_feat]]
@@ -94,7 +96,10 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
     for p in participants:
         p_data = test_data[test_data[participant_col] == p]
         p_base_data = baseline_data[baseline_data[participant_col] == p].reset_index(drop=True)
+        p_base_heatmap = helper.make_heatmap(p_base_data, heatmap_parameters, time_column, 'flight_times')
         dictionary[p] = {}
+        heatmap_dictionary[p] = {}
+        heatmap_dictionary[p]['flash- jump-'] = p_base_heatmap
 
         for cond in condition_dict:
             dictionary[p][cond] = {}
@@ -114,7 +119,14 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
                 dictionary[p][cond][col] = val
                 dictionary[p][cond][f'{col}_diff'] = np.array(val) - np.array(base_val)
 
-    make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, color_dict, figure_name, participant_col)
+            heatmap = helper.make_heatmap(feat_data, heatmap_parameters, time_column, 'flight_times')
+            heatmap_dictionary[p][cond] = heatmap
+
+    make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, color_dict, figure_name,
+                      heatmap_dictionary, heatmap_figure_path, participant_col)
+
+    make_latency_heatmaps(heatmap_dictionary, condition_dict.keys(), heatmap_individual_figure_path)
+
     return time, dictionary
 
 
@@ -241,25 +253,7 @@ def response_density_analysis(data, condition_dict,
 
         for condition in condition_dict:
             condition_data = filter_data(p_data, condition_dict[condition])
-            heatmap = pd.DataFrame()
-
-            total_x = abs(parameters['x_min']) + abs(parameters['x_max'])
-            window_width_x = total_x/parameters['n_col']
-
-            total_y = abs(parameters['y_min']) + abs(parameters['y_max'])
-            window_width_y = total_y / parameters['n_row']
-
-            for n_c in range(parameters['n_col']):
-                for n_r in range(parameters['n_row']):
-                    x_val = parameters['x_min'] + n_c * window_width_x
-                    y_val = parameters['y_min'] + n_r * window_width_y
-
-                    x_filtered = condition_data[condition_data[x_value_col].between(x_val, x_val + window_width_x)]
-                    y_filtered = x_filtered[x_filtered[y_value_col].between(y_val, y_val + window_width_y)]
-                    try:
-                        heatmap.loc[round(y_val, 5), round(x_val)] = len(y_filtered) / len(condition_data)
-                    except ZeroDivisionError:
-                        heatmap.loc[y_val, x_val] = 0
+            heatmap = helper.make_heatmap(condition_data, parameters, x_value_col, y_value_col)
             density_maps[p][condition] = heatmap
         keys = [x for x in condition_dict.keys()]
         density_maps[p]['diff'] = density_maps[p][keys[0]] - density_maps[p][keys[1]]

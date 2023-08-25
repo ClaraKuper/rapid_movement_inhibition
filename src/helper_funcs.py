@@ -131,3 +131,24 @@ def scramble_columns_piecewise(data, scramble_column, piecewise, name_scrambled,
             #print(min(values_to_scramble))
             #print(max(values_to_scramble))
     return data
+
+def make_heatmap(data, parameters, x_value_col, y_value_col):
+    heatmap_df = pd.DataFrame()
+    total_x = abs(parameters['x_min']) + abs(parameters['x_max'])
+    window_width_x = total_x / parameters['n_col']
+
+    total_y = abs(parameters['y_min']) + abs(parameters['y_max'])
+    window_width_y = total_y / parameters['n_row']
+
+    for n_c in range(parameters['n_col']):
+        for n_r in range(parameters['n_row']):
+            x_val = parameters['x_min'] + n_c * window_width_x
+            y_val = parameters['y_min'] + n_r * window_width_y
+
+            x_filtered = data[data[x_value_col].between(x_val, x_val + window_width_x)]
+            y_filtered = x_filtered[x_filtered[y_value_col].between(y_val, y_val + window_width_y)]
+            try:
+                heatmap_df.loc[round(y_val, 5), round(x_val)] = len(y_filtered) / len(data)
+            except ZeroDivisionError:
+                heatmap_df.loc[y_val, x_val] = 0
+    return heatmap_df
