@@ -134,11 +134,17 @@ def create_double_color_cols(data, col_1, col_2, base_colors, drop_per_id):
     return data, new_col_name, dict_colors
 
 
-def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_dict, figure_name, heatmap_dict,
+def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_dict, line_dict, figure_name, heatmap_dict,
                       figure_heatmap_name, participant_id = 'prolific_id'):
     condition_name = conditions.keys()
-    figure, axs = plt.subplots(2, 3, sharex='all', sharey='row', figsize=(10, 3))
-    axs[0, int(len(conditions) / 2)].set_xlabel('movement onset since event [ms]')
+    figure, axs = plt.subplots(2, 2, sharex='all', figsize=(6, 3))
+    axs[1,0].set_xlabel('movement onset since event [ms]')
+    axs[0,0].set_title('Flight Times')
+    axs[0,1].set_title('Baseline Flight Times')
+
+    axs[1,0].set_title('Rest Times')
+    axs[1,0].set_title('Baseline Rest Times')
+
 
     current_axis = 0
 
@@ -155,14 +161,23 @@ def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_
             ci_lower, ci_upper = st.t.interval(confidence=0.95, df=len(vals) - 1,
                                                loc=mean_vals,
                                                scale=st.sem(vals))
-            axs[int(t == 'rest'), current_axis].plot(time, mean_vals, color=color_dict[cond], label=cond)
-            axs[int(t == 'rest'), current_axis].fill_between(time, ci_lower, ci_upper, color=color_dict[cond], alpha=0.2)
-            axs[int(t == 'rest'), current_axis].scatter(time[np.where(ci_lower > 0)],
-                                         np.ones(len(np.where(ci_lower > 0)[0])) * [190, 10][t == 'rest'],
-                                         color=color_dict[cond])
+            axs[int(t == 'rest'), 0].plot(time, mean_vals, color=color_dict[cond], label=cond, linestyle=line_dict[cond])
+            axs[int(t == 'rest'), 0].fill_between(time, ci_lower, ci_upper, color=color_dict[cond], alpha=0.2)
+            #axs[int(t == 'rest'), 0].scatter(time[np.where(ci_lower > 0)],
+            #                             np.ones(len(np.where(ci_lower > 0)[0])) * [190, 10][t == 'rest'],
+            #                             color=color_dict[cond])
+
+            vals = [delay_dict[p][cond][t] for p in delay_dict]
+            mean_vals = np.mean(vals, axis=0)
+            ci_lower, ci_upper = st.t.interval(confidence=0.95, df=len(vals) - 1,
+                                                   loc=mean_vals,
+                                                   scale=st.sem(vals))
+            axs[int(t == 'rest'), 1].plot(time, mean_vals, color=color_dict[cond], label=cond, linestyle=line_dict[cond])
+            axs[int(t == 'rest'), 1].fill_between(time, ci_lower, ci_upper, color=color_dict[cond], alpha=0.2)
 
 
-        axs[0, current_axis].set_title(cond)
+
+
 
         #trial_copy, new_col_name, color_dict_hist = create_double_color_cols(cond_data.copy(deep=True),
         #                                                                     'choiceOrder',

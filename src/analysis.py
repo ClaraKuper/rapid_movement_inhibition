@@ -78,6 +78,7 @@ def analysis_position(data, x_col, y_col, target_x_col, target_y_col, x_full_len
 
 
 def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict, baseline_condition_dict, color_dict,
+                            line_dict,
                             participant_col, touch_on_col, touch_off_col, smooth_window_size, figure_name,
                             heatmap_parameters, heatmap_figure_path, heatmap_individual_figure_path):
     participants = np.unique(data[participant_col])
@@ -122,7 +123,7 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
             heatmap = helper.make_heatmap(feat_data, heatmap_parameters, time_column, 'flight_times')
             heatmap_dictionary[p][cond] = heatmap
 
-    make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, color_dict, figure_name,
+    make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, color_dict, line_dict, figure_name,
                       heatmap_dictionary, heatmap_figure_path, participant_col)
 
     make_latency_heatmaps(heatmap_dictionary, condition_dict.keys(), heatmap_individual_figure_path)
