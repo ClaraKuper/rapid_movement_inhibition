@@ -29,7 +29,6 @@ def format_and_save_data_multiple_participants(input_path, output_path, filter_d
             extra_data = load_json(extra_session_path)
             data = pd.concat([data, extra_data])
             data = data.reset_index(drop=True)
-
         data = filter_data(data, filter_dict)
         data = adjust_format(data, length_dict=length_dict, expand_lists=explode_lists)
         relative_key = '_relative'

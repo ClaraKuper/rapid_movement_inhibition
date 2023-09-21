@@ -206,3 +206,4 @@ function switch_custom_theme(theme_name) {
     let theme = document.getElementById('styles');
     theme.href = theme_name;
 }
+

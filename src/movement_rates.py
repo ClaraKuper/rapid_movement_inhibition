@@ -80,11 +80,11 @@ def get_normalized_rates(data, scale, onset_column, offset_column, order_column,
         n_trials = len(first_touches)
     smooth_distribution = smooth_distribution * n_trials
     movement_rate_raw, movement_rate, scale = causal_rate(offsets, analysis_parameter_dict['window_start'],
-                                                          analysis_parameter_dict['window_end'], smooth_distribution)
+                                                          analysis_parameter_dict['window_end'], smooth_distribution, analysis_parameter_dict['alpha'])
     return movement_rate_raw, movement_rate, scale
 
 
-def causal_rate(move_onset, lock_window_start, lock_window_end, n_trials, alpha=1 / 50):
+def causal_rate(move_onset, lock_window_start, lock_window_end, n_trials, alpha):
     """
      analyse rate in causal time window
 
