@@ -1,10 +1,11 @@
 import numpy as np
+import pandas as pd
 from src.json_parsing import filter_data
 from src.plotting import plot_single_participant_rates
 
 
 def get_movement_rates_by_participant(data, onset_column, offset_column, participant_column, analysis_parameter_dict,
-                                      order_column, conditions_dict, condition_color_dict, plot=False):
+                                      order_column, conditions_dict, condition_color_dict, baseline_name, plot=False):
     participants = np.unique(data[participant_column])
     ref_scale = np.arange(analysis_parameter_dict['window_start'], analysis_parameter_dict['window_end'], 1)
     movement_rates = {}
@@ -28,9 +29,11 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
             rate_parameters[p][condition]['flash_shown'] = conditions_dict[condition]['flashShown']
             rate_parameters[p][condition]['stim_jumped'] = conditions_dict[condition]['stimJumped']
 
+    movement_rate_mean, normalized_rates = normalize_to_mean(movement_rates, baseline_name)
+
     if plot:
-        plot_single_participant_rates(movement_rates, scale, rate_parameters, condition_color_dict)
-    return movement_rates, rate_parameters, scale
+        plot_single_participant_rates(normalized_rates, scale, rate_parameters, condition_color_dict)
+    return normalized_rates, rate_parameters, scale
 
 
 def get_rate_parameters(rate, scale, parameters):
@@ -81,7 +84,29 @@ def get_normalized_rates(data, scale, onset_column, offset_column, order_column,
     smooth_distribution = smooth_distribution * n_trials
     movement_rate_raw, movement_rate, scale = causal_rate(offsets, analysis_parameter_dict['window_start'],
                                                           analysis_parameter_dict['window_end'], smooth_distribution, analysis_parameter_dict['alpha'])
+
     return movement_rate_raw, movement_rate, scale
+
+def normalize_to_mean(dictionary, key):
+    """
+    This function takes a dictionary of movement rates, and the key where the average should be recorded.
+    Next, it computes the mean of all entries but the current. Returns a dictionary with these values
+    """
+    all_values = [dictionary[k][key] for k in dictionary]
+    df_all_dict_values = pd.DataFrame(all_values)
+    df_all_dict_values['key'] = [k for k in dictionary.keys()]
+    means_dict = {}
+    normalized_dict = {}
+    for outer_key in np.unique(df_all_dict_values['key']):
+        mean_rates = df_all_dict_values[df_all_dict_values['key']!=outer_key]
+        means_dict[outer_key] = mean_rates.mean(axis = 0, numeric_only=True).values
+        normalized_dict[outer_key] = {}
+        for inner_key in dictionary[outer_key]:
+            normalized_dict[outer_key][inner_key] = dictionary[outer_key][inner_key]/means_dict[outer_key]
+
+    return means_dict, normalized_dict
+
+
 
 
 def causal_rate(move_onset, lock_window_start, lock_window_end, n_trials, alpha):

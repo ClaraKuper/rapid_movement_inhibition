@@ -17,7 +17,7 @@ from scipy.stats import ttest_rel, t, sem
 
 def analysis_rates(data, onset_column, offset_column, participant_column, analysis_parameter_dict, order_column,
                    conditions_dict, condition_color_dict, metrics_out_file, metrics_figure_file, dependent_vars,
-                   independent_vars, figure_height=6):
+                   independent_vars, baseline_name, figure_height=6):
     '''
     Movement Rate Analysis
     - Step 1: Compute Rates for Individual Participants
@@ -36,7 +36,8 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
                                                                    analysis_parameter_dict,
                                                                    order_column,
                                                                    conditions_dict,
-                                                                   condition_color_dict)
+                                                                   condition_color_dict,
+                                                                   baseline_name)
     metrics = helper.save_dict_as_table(rate_metrics, metrics_out_file, participant_column)
     helper.get_average_rates(rates,
                              scale,

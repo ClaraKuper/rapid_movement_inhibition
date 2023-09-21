@@ -52,7 +52,7 @@ def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, c
         minimum = [parameters[p][condition]['minimum'] for p in parameters]
 
         axs.scatter(latencies, minimum, color=color_dict[condition], alpha=1, s=3)
-    axs.set_ylim([-0.1, 9])
+    axs.set_ylim([-0.1, 2])
     axs.set_xlim([-600, 850])
     axs.set_xlabel('time [ms] since event')
     axs.set_ylabel('movement rates [onsets/s]')
