@@ -12,7 +12,6 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
     rate_parameters = {}
     for p in participants:
         movement_rates[p] = {}
-        rate_parameters[p] = {}
         p_data = data[data[participant_column] == p].reset_index(drop=True)
 
         for condition in conditions_dict:
@@ -22,14 +21,18 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
                                                                            offset_column, order_column,
                                                                            analysis_parameter_dict)
             assert np.all(ref_scale == scale)
-            parameter_dict = get_rate_parameters(movement_rate, scale, analysis_parameter_dict)
-
             movement_rates[p][condition] = movement_rate
+
+    movement_rate_mean, normalized_rates = normalize_to_mean(movement_rates, baseline_name)
+
+    for p in participants:
+        rate_parameters[p] = {}
+        for condition in conditions_dict:
+            condition_dict = conditions_dict[condition]
+            parameter_dict = get_rate_parameters(normalized_rates[p][condition], scale, analysis_parameter_dict)
             rate_parameters[p][condition] = parameter_dict
             rate_parameters[p][condition]['flash_shown'] = conditions_dict[condition]['flashShown']
             rate_parameters[p][condition]['stim_jumped'] = conditions_dict[condition]['stimJumped']
-
-    movement_rate_mean, normalized_rates = normalize_to_mean(movement_rates, baseline_name)
 
     if plot:
         plot_single_participant_rates(normalized_rates, scale, rate_parameters, condition_color_dict)
