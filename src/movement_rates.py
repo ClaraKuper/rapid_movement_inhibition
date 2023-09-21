@@ -29,7 +29,7 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
         rate_parameters[p] = {}
         for condition in conditions_dict:
             condition_dict = conditions_dict[condition]
-            parameter_dict = get_rate_parameters(normalized_rates[p][condition], scale, analysis_parameter_dict)
+            parameter_dict = get_rate_parameters(normalized_rates[p][condition], scale, np.ones(len(scale)), analysis_parameter_dict)
             rate_parameters[p][condition] = parameter_dict
             rate_parameters[p][condition]['flash_shown'] = conditions_dict[condition]['flashShown']
             rate_parameters[p][condition]['stim_jumped'] = conditions_dict[condition]['stimJumped']
@@ -39,15 +39,15 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
     return normalized_rates, rate_parameters, scale
 
 
-def get_rate_parameters(rate, scale, parameters):
+def get_rate_parameters(rate, scale, base_rate, parameters):
     dictionary = {}
     search_scale, search_rate = filter_rate_and_scale(scale, rate, parameters['search_start'], parameters['search_end'])
-    minimum, latency = get_min_latency(search_rate, search_scale)
-
-    base_scale, base_rate = filter_rate_and_scale(scale, rate, parameters['baseline_start'], parameters['baseline_end'])
     baseline = get_baseline(base_rate)
-    magnitude = baseline - minimum
-    dictionary['minimum'] = minimum
+    value, latency = get_highest_value_latency(search_rate-baseline, search_scale)
+
+    #base_rate = #filter_rate_and_scale(scale, rate, parameters['baseline_start'], parameters['baseline_end'])
+    magnitude = value
+    dictionary['minimum'] = value + baseline
     dictionary['latency'] = latency
     dictionary['baseline'] = baseline
     dictionary['magnitude'] = magnitude
@@ -62,11 +62,13 @@ def filter_rate_and_scale(scale, rate, low, high):
     return filter_scale, filter_rate
 
 
-def get_min_latency(rate, scale):
-    minimum = min(rate)
-    latency = scale[np.where(rate == minimum)]
+def get_highest_value_latency(rate, scale):
+    max_value = max(abs(rate))
+    idx = np.where(abs(rate) == max_value)
+    latency = scale[idx]
+    value = rate[idx]
     assert len(latency) == 1
-    return minimum, latency[0]
+    return value[0], latency[0]
 
 
 def get_baseline(rate):
