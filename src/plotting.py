@@ -36,7 +36,7 @@ def plot_single_participant_rates(movement_rates, scale, parameters, color_dict,
     plt.tight_layout()
 
 
-def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, color_dict, axs):
+def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, cluster, color_dict, axs):
     for condition in movement_rates:
         axs.plot(scale,
                  movement_rates[condition],
@@ -52,6 +52,12 @@ def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, c
         minimum = [parameters[p][condition]['minimum'] for p in parameters]
 
         axs.scatter(latencies, minimum, color=color_dict[condition], alpha=1, s=3)
+    sig_line = 0
+    #print(cluster)
+    for cond in cluster:
+        for c in cluster[cond]:
+            axs.hlines(sig_line, scale[min(c[0])], scale[max(c[0])], colors=color_dict[cond])
+        sig_line += 0.02
     axs.set_ylim([-0.1, 2])
     axs.set_xlim([-600, 850])
     axs.set_xlabel('time [ms] since event')

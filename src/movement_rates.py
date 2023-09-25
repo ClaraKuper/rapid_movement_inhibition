@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import src.cluster_based_permutation as cmp
 from src.json_parsing import filter_data
 from src.plotting import plot_single_participant_rates
 
@@ -25,6 +27,23 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
 
     movement_rate_mean, normalized_rates = normalize_to_mean(movement_rates, baseline_name)
 
+    # cluster based permutation test
+    def get_dataframe_per_condition(data, conditions):
+        dataframes = []
+        for condition in conditions:
+            dataframes.append(pd.DataFrame([data[x][condition] for x in data]))
+        return dataframes
+
+    baseline_data, flash_no_jump_data, no_flash_jump_data, flash_jump_data = get_dataframe_per_condition(normalized_rates,
+                                                                                                         ['no_flash_no_jump',
+                                                                                                          'flash_no_jump',
+                                                                                                          'no_flash_jump',
+                                                                                                          'flash_jump'])
+    significant_clusters = {}
+    for condition, condition_name in zip([flash_no_jump_data, no_flash_jump_data, flash_jump_data], ['flash_no_jump', 'no_flash_jump', 'flash_jump']):
+        clusters, cutoff_value, cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_data, condition, 2.093, 1000, 0.05)
+        significant_clusters[condition_name] = cluster_over_thresh.cluster_location
+
     for p in participants:
         rate_parameters[p] = {}
         for condition in conditions_dict:
@@ -36,7 +55,7 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
 
     if plot:
         plot_single_participant_rates(normalized_rates, scale, rate_parameters, condition_color_dict)
-    return normalized_rates, rate_parameters, scale
+    return normalized_rates, rate_parameters, scale, significant_clusters
 
 
 def get_rate_parameters(rate, scale, base_rate, parameters):

@@ -29,7 +29,7 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
 
     # make figure
     axs = make_figure_rates(figure_height, dependent_vars)
-    rates, rate_metrics, scale = get_movement_rates_by_participant(data,
+    rates, rate_metrics, scale, significant_cluster = get_movement_rates_by_participant(data,
                                                                    onset_column,
                                                                    offset_column,
                                                                    participant_column,
@@ -46,6 +46,7 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
                              condition_color_dict,
                              0.95,
                              axs['main'],
+                             significant_cluster,
                              plot_average_participant_rates)
 
     plot_metrics(metrics, dependent_vars, axs, condition_color_dict)
