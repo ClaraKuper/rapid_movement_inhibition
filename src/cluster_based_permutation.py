@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,9 +10,20 @@ def cluster_based_permutation_test(condition_a, condition_b, critical_t, n_reps,
     gets clusters above a critical t-value compares them to clusters arrising by chance
     condition_a: pandas data frame, with n (repetitions) rows and t (timepoints) columns.
     repetitions need to be in the same order (row 0 in condition a is from the same participant as row 0 in condition b)
+    a random seed is set for replicability
+
+    returns
+    clusters: all clusters above a critical t-value
+    cutoff_value: the value of cluster mass that denotes given upper percentile
+    cluster_over_thresh: information of all clusters that are over the critical cluster mass
     """
     # clusters in our data
     condition_difference = condition_a - condition_b
+    if condition_difference.shape[0]>condition_difference.shape[1]:
+        warnings.WarningMessage(f"The data frame seems to have more rows (repetitions of the measurement) - "
+                                f"{condition_difference.shape[0]} rows - "
+                                f"than columns (time points) - {condition_difference.shape[1]} columns - in the "
+                                f"measurement. \nPlease make sure that this is correct.")
     t_values = t_stats(condition_difference)
     clusters = find_clusters(t_values, critical_t)
     cluster_df = pd.DataFrame.from_dict(clusters).T
@@ -19,6 +32,7 @@ def cluster_based_permutation_test(condition_a, condition_b, critical_t, n_reps,
     cluster_over_thresh = cluster_df[cluster_df['cluster_weight'] > cutoff_value]
 
     return clusters, cutoff_value, cluster_over_thresh
+
 
 def random_permutation(data, critical_t, n_reps, percentile, random_seed):
     """
@@ -64,7 +78,7 @@ def get_random_permutation_matrix(nrow, ncol, random_seed):
 
 def find_clusters(values_to_compare, critical_value):
     """
-    find a cluster of t-values above the critial threshold
+    find a cluster of values above the critial threshold
     """
     all_clusters = {}
     over_critical = abs(values_to_compare) >= critical_value
