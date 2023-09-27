@@ -47,11 +47,14 @@ def random_permutation(data, critical_t, n_reps, percentile, random_seed):
     for rep in range(n_reps):
         if len(data.shape) == 2:
             permutated_data = data.mul(random_permutation_matrix[rep], axis = 0)
-        if len(data.shape) == 3:
+        elif len(data.shape) == 3:
             permutated_data = []
             for idx, part in enumerate(data):
                 permutated_data.append(part*random_permutation_matrix[rep][idx])
             permutated_data = np.array(permutated_data)
+        else:
+            raise NotImplementedError("This implementation does not support input with more than 3 dimensions. "
+                                      f"The current input has shaper {data.shape}")
         t_values = t_stats(permutated_data)
         clusters = find_clusters(t_values, critical_t)
         if len(clusters)>0:
