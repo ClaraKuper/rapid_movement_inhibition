@@ -76,7 +76,7 @@ def pythagoras(x_value, y_value):
     return np.sqrt(x_value**2 + y_value**2)
 
 
-def get_average_rates(rates, scale, conditions, parameters, condition_color_dict, ci, axs, cluster, plotting_func):
+def get_average_rates(rates, scale, conditions, parameters, condition_color_dict, linestyle_dict, ci, axs, cluster, plotting_func):
     rates_dict = {}
     ci_dict = {}
     for cond in conditions:
@@ -90,7 +90,7 @@ def get_average_rates(rates, scale, conditions, parameters, condition_color_dict
         ci_dict[cond]['ci_upper'] = ci_upper
         ci_dict[cond]['ci_lower'] = ci_lower
 
-    plotting_func(rates_dict, ci_dict, scale, parameters, cluster, condition_color_dict, axs)
+    plotting_func(rates_dict, ci_dict, scale, parameters, cluster, condition_color_dict, linestyle_dict, axs)
     # return rates_dict, scale
 
 
@@ -120,16 +120,12 @@ def scramble_columns_piecewise(data, scramble_column, piecewise, name_scrambled,
     data = data.reset_index(drop = True)
     for s in np.unique(data[session_name]):
         s_data = data[data[session_name] == s]
-        #print(s_data)
         for piece in np.unique(data[piecewise]):
             values_to_scramble = s_data[s_data[piecewise] == piece][scramble_column].values
             idx = s_data[s_data[piecewise] == piece].index
             np.random.shuffle(values_to_scramble)
             data.loc[idx, name_scrambled] = values_to_scramble
 
-            #print(np.unique(data.loc[idx,piecewise]))
-            #print(min(values_to_scramble))
-            #print(max(values_to_scramble))
     return data
 
 def make_heatmap(data, parameters, x_value_col, y_value_col):
@@ -140,10 +136,10 @@ def make_heatmap(data, parameters, x_value_col, y_value_col):
     total_y = abs(parameters['y_min']) + abs(parameters['y_max'])
     window_width_y = total_y / parameters['n_row']
 
-    for n_c in range(parameters['n_col']):
-        for n_r in range(parameters['n_row']):
-            x_val = parameters['x_min'] + n_c * window_width_x
-            y_val = parameters['y_min'] + n_r * window_width_y
+    for n_c in np.arange(parameters['x_min'], parameters['x_max'], window_width_x): #range(parameters['n_col']):
+        for n_r in np.arange(parameters['y_min'], parameters['y_max'], window_width_y): #range(parameters['n_row']):
+            x_val = n_c #parameters['x_min'] + n_c * window_width_x
+            y_val = n_r #parameters['y_min'] + n_r * window_width_y
 
             x_filtered = data[data[x_value_col].between(x_val, x_val + window_width_x)]
             y_filtered = x_filtered[x_filtered[y_value_col].between(y_val, y_val + window_width_y)]
@@ -151,4 +147,13 @@ def make_heatmap(data, parameters, x_value_col, y_value_col):
                 heatmap_df.loc[round(y_val, 5), round(x_val)] = len(y_filtered) / len(data)
             except ZeroDivisionError:
                 heatmap_df.loc[y_val, x_val] = 0
+    #heatmap_df.columns =
+    #heatmap_df.index =
+
     return heatmap_df
+
+def get_dataframe_per_condition(data, conditions):
+    dataframes = []
+    for condition in conditions:
+        dataframes.append(pd.DataFrame([data[x][condition] for x in data]))
+    return dataframes

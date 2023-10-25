@@ -1,11 +1,13 @@
 import numpy as np
+import pandas as pd
+import src.cluster_based_permutation as cmp
 import src.helper_funcs as hf
 from src.json_parsing import filter_data
 
 
 def get_fitted_responses(data, x_full_length, y_full_length, x_col, y_col, target_x_col, target_y_col,
                          pix2deg_by_name, pix2deg_dictionary, participant_id_col, condition_dictionary,
-                         time_col_name, params, sigmoid_func):
+                         time_col_name, params, sigmoid_func, result_path):
 
     #data = data.dropna(axis=1)
     #data = data.reset_index(drop=True)
@@ -47,8 +49,15 @@ def get_fitted_responses(data, x_full_length, y_full_length, x_col, y_col, targe
                                                            sigmoid_func,
                                                            time_col_name,
                                                            distance_dva_name)
+    flash_jump_data = pd.DataFrame([smoothed_response_positions[x]['flash+ jump+'] for x in smoothed_response_positions])
+    no_flash_jump_data = pd.DataFrame([smoothed_response_positions[x]['flash- jump+'] for x in smoothed_response_positions])
 
-    return smoothed_response_positions, position_response_dictionary, scale, data
+    clusters, cutoff_value, cluster_over_thresh = cmp.cluster_based_permutation_test(flash_jump_data, no_flash_jump_data,
+                                                                                     2.093, 1000, 0.05,
+                                                                                     f'{result_path}/touch_position_differences.csv')
+    significant_clusters = [cluster_over_thresh.cluster_location]
+
+    return smoothed_response_positions, position_response_dictionary, scale, data, significant_clusters
 
 
 def fit_by_id_and_condition(data, id_col_name, condition_dictionary, fit_function, x_name, y_name):

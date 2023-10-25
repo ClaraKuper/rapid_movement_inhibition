@@ -5,6 +5,8 @@ import pandas as pd
 import seaborn as sns
 import scipy.stats as st
 import src.helper_funcs as helper
+import src.cluster_based_permutation as cmp
+from matplotlib.patches import Rectangle
 
 
 mpl.rcParams['axes.spines.right'] = False
@@ -36,13 +38,16 @@ def plot_single_participant_rates(movement_rates, scale, parameters, color_dict,
     plt.tight_layout()
 
 
-def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, cluster, color_dict, axs):
+def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, cluster, color_dict,
+                                   line_dict, axs):
     for condition in movement_rates:
+        upper_lim = []
         axs.plot(scale,
                  movement_rates[condition],
                  color=color_dict[condition],
+                 linestyle = line_dict[condition],
                  label=condition,
-                 linewidth=3)
+                 linewidth=1)
         axs.fill_between(scale,
                          ci_dict[condition]['ci_upper'],
                          ci_dict[condition]['ci_lower'],
@@ -50,20 +55,24 @@ def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, c
                          color=color_dict[condition])
         latencies = [parameters[p][condition]['latency'] for p in parameters]
         minimum = [parameters[p][condition]['minimum'] for p in parameters]
+        upper_lim.append(min(6, max(ci_dict[condition]['ci_upper'])))
 
-        axs.scatter(latencies, minimum, color=color_dict[condition], alpha=1, s=3)
+        axs.scatter(latencies, minimum, color=[color_dict[condition], "White"][int(line_dict[condition] == '--')], edgecolors=color_dict[condition], alpha=1, s=3)
     sig_line = 0
-    #print(cluster)
+
     for cond in cluster:
         for c in cluster[cond]:
-            axs.hlines(sig_line, scale[min(c[0])], scale[max(c[0])], colors=color_dict[cond])
+            print(cond)
+            print(f'start cluster at: {scale[min(c[0])]}')
+            print(f'end cluster at: {scale[max(c[0])]}')
+            print(f'length cluster {scale[max(c[0])] - scale[min(c[0])]}')
+            axs.hlines(sig_line, scale[min(c[0])], scale[max(c[0])], colors=color_dict[cond], linestyles=line_dict[cond])
         sig_line += 0.02
-    axs.set_ylim([-0.1, 2])
-    axs.set_xlim([-600, 850])
+    axs.set_ylim([-0.1, max(1.5, max(upper_lim))])
+    axs.set_xlim([-200, 850])
     axs.set_xlabel('time [ms] since event')
     axs.set_ylabel('movement rates [onsets/s]')
     axs.legend()
-
 
 def make_figure_rates(height, sides):
     main_width = height
@@ -77,13 +86,13 @@ def make_figure_rates(height, sides):
     ax_dict = fig.subplot_mosaic(mosaic)
     return ax_dict
 
-
-def plot_average_participant_position(positions, ci_dict, scale, params, color_dict, axs):
+def plot_average_participant_position(positions, ci_dict, scale, params, cluster, color_dict, line_dict, axs):
     # fig, axs = plt.subplots(1, 1, figsize=(5, 5))
     for condition in positions:
         axs.plot(scale,
                  positions[condition],
                  color=color_dict[condition],
+                 linestyle= line_dict[condition],
                  label=condition,
                  linewidth=3)
         axs.fill_between(scale,
@@ -91,6 +100,7 @@ def plot_average_participant_position(positions, ci_dict, scale, params, color_d
                          ci_dict[condition]['ci_lower'],
                          alpha=0.3,
                          color=color_dict[condition])
+    #for c in cluster:
     axs.set_ylim([-0.1, 1.5])
     axs.set_xlim([-600, 850])
     axs.set_xlabel('time [ms] since event')
@@ -98,17 +108,19 @@ def plot_average_participant_position(positions, ci_dict, scale, params, color_d
     axs.legend()
 
 
-def plot_metrics(metrics, which_to_plot, axs, condition_color):
+def plot_metrics(metrics, which_to_plot, condition_color, figure_path):
+
     for p in which_to_plot:
-        sns.stripplot(data=metrics,
+        gx = sns.stripplot(data=metrics,
                       x='condition',
                       y=p,
                       hue='condition',
-                      ax=axs[p],
+                      #ax=axs[p],
                       palette=condition_color,
                       legend=False)
-        axs[p].set_xticks([])
-
+        #axs[p].set_xticks([])
+        gx.get_figure().savefig(f'{figure_path}/{p}.svg')
+        plt.show()
 
 def hex_to_rgb(hexadec):
     rgb = []
@@ -140,19 +152,15 @@ def create_double_color_cols(data, col_1, col_2, base_colors, drop_per_id):
     return data, new_col_name, dict_colors
 
 
-def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_dict, line_dict, figure_name, heatmap_dict,
-                      figure_heatmap_name, participant_id = 'prolific_id'):
+def make_delay_figure(delay_dict, data, conditions, measured_times, time, significant_clusters, heatmap_clusters,
+                      color_dict, line_dict, figure_name, heatmap_dict, figure_heatmap_name, time_to,
+                      participant_id = 'prolific_id'):
     condition_name = conditions.keys()
-    figure, axs = plt.subplots(2, 2, sharex='all', figsize=(6, 3))
-    axs[1,0].set_xlabel('movement onset since event [ms]')
-    axs[0,0].set_title('Flight Times')
-    axs[0,1].set_title('Baseline Flight Times')
-
-    axs[1,0].set_title('Rest Times')
-    axs[1,0].set_title('Baseline Rest Times')
-
-
-    current_axis = 0
+    figure, axs = plt.subplots(2, 1, sharex='all', figsize=(2.5, 2))
+    axs[1].set_xlabel('movement onset since event [ms]')
+    #axs[0].set_title('Flight Times')
+    #axs[1].set_title('Rest Times')
+    axs[0].set_xlim([-200, 850])
 
     for cond in condition_name:
         cond_data = data.copy(deep=True)
@@ -162,70 +170,83 @@ def make_delay_figure(delay_dict, data, conditions, measured_times, time, color_
             cond_data = cond_data[cond_data[f] == feat[f]]
 
         for t in measured_times:
-            vals = [delay_dict[p][cond][f'{t}_diff'] for p in delay_dict]
-            mean_vals = np.mean(vals, axis=0)
-            ci_lower, ci_upper = st.t.interval(confidence=0.95, df=len(vals) - 1,
-                                               loc=mean_vals,
-                                               scale=st.sem(vals))
-            axs[int(t == 'rest'), 0].plot(time, mean_vals, color=color_dict[cond], label=cond, linestyle=line_dict[cond])
-            axs[int(t == 'rest'), 0].fill_between(time, ci_lower, ci_upper, color=color_dict[cond], alpha=0.2)
-            #axs[int(t == 'rest'), 0].scatter(time[np.where(ci_lower > 0)],
-            #                             np.ones(len(np.where(ci_lower > 0)[0])) * [190, 10][t == 'rest'],
-            #                             color=color_dict[cond])
 
             vals = [delay_dict[p][cond][t] for p in delay_dict]
             mean_vals = np.mean(vals, axis=0)
             ci_lower, ci_upper = st.t.interval(confidence=0.95, df=len(vals) - 1,
                                                    loc=mean_vals,
                                                    scale=st.sem(vals))
-            axs[int(t == 'rest'), 1].plot(time, mean_vals, color=color_dict[cond], label=cond, linestyle=line_dict[cond])
-            axs[int(t == 'rest'), 1].fill_between(time, ci_lower, ci_upper, color=color_dict[cond], alpha=0.2)
+            axs[int(t == 'rest')].plot(time, mean_vals, color=color_dict[cond], label=cond, linestyle=line_dict[cond])
+            axs[int(t == 'rest')].fill_between(time, ci_lower, ci_upper, color=color_dict[cond], alpha=0.2)
 
 
+    for col in significant_clusters:
+        sig_line = [100, 60][int(col == 'rest')]
+        for cond in significant_clusters[col]:
+            for c in significant_clusters[col][cond]:
+                print(f'Movement type: {col}, condition {cond}')
+                print(f'cluster starts at {time[min(c[0])]}')
+                print(f'cluster ends at {time[max(c[0])]}')
+                print(f'cluster lasts {time[max(c[0])]-time[min(c[0])]}')
 
+                print(f'test: {time[968], time[978]}')
 
+                axs[int(col=='rest')].hlines(sig_line, time[min(c[0])], time[max(c[0])],
+                                             color=color_dict[cond], linestyle=line_dict[cond])
+                sig_line += [10, 2][int(col == 'rest')]
+                if col == 'rest':
+                    axs[1].set_ylim(55, 85)
+                else:
+                    axs[0].set_ylim(95, 320)
 
-        #trial_copy, new_col_name, color_dict_hist = create_double_color_cols(cond_data.copy(deep=True),
-        #                                                                     'choiceOrder',
-        #                                                                     participant_id,
-        #                                                                     ['AE43C7', 'FF3CC7', 'F0F600',
-        #                                                                      '00E5E8', '007C77', '007C77'],
-        #                                                                     0.05)
-        #sns.histplot(data=trial_copy,
-        #             x='touchOff_relative',
-        #             hue=new_col_name,
-        #             multiple='stack',
-        #             palette=color_dict_hist,
-        #             legend=False,
-        #             edgecolor=None,
-        #             ax=axs[1, current_axis])
-
-        #current_axis += 1
 
     plt.tight_layout()
     plt.savefig(figure_name)
     plt.show()
 
     current_axis = 0
-    heatmap_fig, heatmap_axs = plt.subplots(2,2, sharex='all', sharey='all', figsize = (5,3))
-    jumpflash = np.mean([heatmap_dict[p]['flash+ jump+'] for p in heatmap_dict], axis = 0)
-    jumpnoflash = np.mean([heatmap_dict[p]['flash- jump+'] for p in heatmap_dict], axis = 0)
-    nojumpflash = np.mean([heatmap_dict[p]['flash+ jump-'] for p in heatmap_dict], axis = 0)
-    nojumpnoflash = np.mean([heatmap_dict[p]['flash- jump-'] for p in heatmap_dict], axis = 0)
+    heatmap_fig, heatmap_axs = plt.subplots(2,2, sharex='all', sharey='all', figsize = (3,2.5))
+    participants = [p for p in heatmap_dict]
+    jumpflash = pd.DataFrame(np.mean([heatmap_dict[p]['flash+ jump+'] for p in participants], axis = 0),
+                             columns=heatmap_dict[participants[0]]['flash+ jump+'].columns,
+                             index=heatmap_dict[participants[0]]['flash+ jump+'].index)
+    jumpnoflash = pd.DataFrame(np.mean([heatmap_dict[p]['flash- jump+'] for p in participants], axis = 0),
+                               columns = heatmap_dict[participants[0]]['flash- jump+'].columns, index = heatmap_dict[participants[0]]['flash- jump+'].index)
+    nojumpflash = pd.DataFrame(np.mean([heatmap_dict[p]['flash+ jump-'] for p in participants], axis = 0),
+                             columns=heatmap_dict[participants[0]]['flash+ jump-'].columns, index=heatmap_dict[participants[0]]['flash+ jump-'].index)
+    nojumpnoflash = pd.DataFrame(np.mean([heatmap_dict[p]['flash- jump-'] for p in participants], axis = 0),
+                             columns=heatmap_dict[participants[0]]['flash- jump-'].columns, index=heatmap_dict[participants[0]]['flash- jump-'].index)
 
     a = sns.heatmap(data = nojumpnoflash,
-                ax=heatmap_axs[0, current_axis], vmin=-0.005, vmax=0.02)
+                    ax=heatmap_axs[0, current_axis],
+                    vmin=0, vmax=0.01,
+                    cmap='Greys', cbar=False)
 
     b = sns.heatmap(data=nojumpflash,
-                ax=heatmap_axs[1, current_axis], vmin=-0.005, vmax=0.02)
+                    ax=heatmap_axs[1, current_axis], vmin=0, vmax=0.01,
+                    cmap='Greys', cbar=False)
+
+    for cluster in heatmap_clusters['flash+ jump-']:
+        for array in np.array(cluster).T:
+            b.add_patch(Rectangle((array[1], array[0]), 1, 1, fill=True, alpha=0.5, edgecolor='none'))
 
     current_axis += 1
 
     c = sns.heatmap(data=jumpnoflash,
-                    ax=heatmap_axs[0, current_axis], vmin = -0.005, vmax=0.02)
+                    ax=heatmap_axs[0, current_axis], vmin = 0, vmax=0.01,
+                    cmap='Greys', cbar=False)
+
+    for cluster in heatmap_clusters['flash- jump+']:
+        for array in np.array(cluster).T:
+            c.add_patch(Rectangle((array[1], array[0]), 1, 1, fill=True, alpha=0.5, edgecolor='none'))
 
     d = sns.heatmap(data=jumpflash,
-                    ax=heatmap_axs[1, current_axis], vmin = -0.005, vmax=0.02)
+                    ax=heatmap_axs[1, current_axis], vmin = 0, vmax=0.01,
+                    cmap='Greys', cbar=False)
+
+    for cluster in heatmap_clusters['flash+ jump+']:
+        for array in np.array(cluster).T:
+            d.add_patch(Rectangle((array[1], array[0]), 1, 1, fill=True, alpha=0.5, edgecolor='none'))
 
     plt.tight_layout()
     plt.savefig(figure_heatmap_name)

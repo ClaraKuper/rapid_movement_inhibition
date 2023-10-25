@@ -1,13 +1,15 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import src.helper_funcs as helper
 import src.cluster_based_permutation as cmp
 from src.json_parsing import filter_data
 from src.plotting import plot_single_participant_rates
 
 
 def get_movement_rates_by_participant(data, onset_column, offset_column, participant_column, analysis_parameter_dict,
-                                      order_column, conditions_dict, condition_color_dict, baseline_name, plot=False):
+                                      order_column, conditions_dict, condition_color_dict, linestyle_dict, baseline_name,
+                                      result_path, plot=False):
     participants = np.unique(data[participant_column])
     ref_scale = np.arange(analysis_parameter_dict['window_start'], analysis_parameter_dict['window_end'], 1)
     movement_rates = {}
@@ -28,20 +30,14 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
     movement_rate_mean, normalized_rates = normalize_to_mean(movement_rates, baseline_name)
 
     # cluster based permutation test
-    def get_dataframe_per_condition(data, conditions):
-        dataframes = []
-        for condition in conditions:
-            dataframes.append(pd.DataFrame([data[x][condition] for x in data]))
-        return dataframes
-
-    baseline_data, flash_no_jump_data, no_flash_jump_data, flash_jump_data = get_dataframe_per_condition(normalized_rates,
-                                                                                                         ['no_flash_no_jump',
-                                                                                                          'flash_no_jump',
-                                                                                                          'no_flash_jump',
-                                                                                                          'flash_jump'])
+    baseline_data, flash_no_jump_data, no_flash_jump_data, flash_jump_data = helper.get_dataframe_per_condition(normalized_rates,
+                                                                                                         ['flash- jump-',
+                                                                                                          'flash+ jump-',
+                                                                                                          'flash- jump+',
+                                                                                                          'flash+ jump+'])
     significant_clusters = {}
-    for condition, condition_name in zip([flash_no_jump_data, no_flash_jump_data, flash_jump_data], ['flash_no_jump', 'no_flash_jump', 'flash_jump']):
-        clusters, cutoff_value, cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_data, condition, 2.093, 1000, 0.05)
+    for condition, condition_name in zip([flash_no_jump_data, no_flash_jump_data, flash_jump_data], ['flash+ jump-', 'flash- jump+', 'flash+ jump+']):
+        clusters, cutoff_value, cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_data, condition, 2.093, 1000, 0.05, f'{result_path}/rate_cluster_{condition_name}.csv')
         significant_clusters[condition_name] = cluster_over_thresh.cluster_location
 
     for p in participants:
