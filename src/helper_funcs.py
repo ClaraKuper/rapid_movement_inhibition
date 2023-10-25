@@ -157,3 +157,7 @@ def get_dataframe_per_condition(data, conditions):
     for condition in conditions:
         dataframes.append(pd.DataFrame([data[x][condition] for x in data]))
     return dataframes
+
+def get_weighted_average(df, column_value, column_weight):
+    weighted_average = (df[column_value] * df[column_weight])/sum(df(column_weight))
+    return weighted_average

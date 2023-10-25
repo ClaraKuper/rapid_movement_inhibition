@@ -1,6 +1,5 @@
 import math
 import warnings
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -18,34 +17,31 @@ from scipy.stats import ttest_rel, t, sem
 from matplotlib.patches import Rectangle
 
 
-
 def analysis_rates(data, onset_column, offset_column, participant_column, analysis_parameter_dict, order_column,
                    conditions_dict, condition_color_dict, linestyle_dict, metrics_out_file, metrics_figure_file,
-                   dependent_vars, independent_vars, baseline_name, result_path, figure_height=6):
-    '''
+                   dependent_vars, independent_vars, baseline_name, result_path):
+    """
     Movement Rate Analysis
     - Step 1: Compute Rates for Individual Participants
     - Step 2: Get metrics from the rates
     - Step 3: compare metrics statistically
     - Step 4: Plot Rates
     - Step 5: Plot metrics
-    '''
+    """
 
-    # make figure
-    #axs = make_figure_rates(figure_height, dependent_vars)
     rates, rate_metrics, scale, significant_cluster = get_movement_rates_by_participant(data,
-                                                                   onset_column,
-                                                                   offset_column,
-                                                                   participant_column,
-                                                                   analysis_parameter_dict,
-                                                                   order_column,
-                                                                   conditions_dict,
-                                                                   condition_color_dict,
-                                                                   linestyle_dict,
-                                                                   baseline_name,
-                                                                   result_path)
+                                                                                        onset_column,
+                                                                                        offset_column,
+                                                                                        participant_column,
+                                                                                        analysis_parameter_dict,
+                                                                                        order_column,
+                                                                                        conditions_dict,
+                                                                                        condition_color_dict,
+                                                                                        linestyle_dict,
+                                                                                        baseline_name,
+                                                                                        result_path)
     metrics = helper.save_dict_as_table(rate_metrics, metrics_out_file, participant_column)
-    rate_figure, rate_figure_axs = plt.subplots(1,1, figsize=(2.5, 2.5))
+    rate_figure, rate_figure_axs = plt.subplots(1, 1, figsize=(2.5, 2.5))
     helper.get_average_rates(rates,
                              scale,
                              conditions_dict,
@@ -64,20 +60,16 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
 
 
 def analysis_position(data, x_col, y_col, target_x_col, target_y_col, x_full_length, y_full_length, pix2deg_by_name,
-                      pix2deg_dictionary, participant_col, condition_dictionary, condition_color_dict, condition_line_dict, time_col_name,
-                      params, dependent_vars, independent_vars_dict, metrics_out_file, data_type_dict, results_path, figure_height=6):
+                      pix2deg_dictionary, participant_col, condition_dictionary, condition_color_dict,
+                      condition_line_dict, time_col_name, params, dependent_vars, independent_vars_dict,
+                      metrics_out_file, data_type_dict, results_path, figure_height=6):
     axs = make_figure_rates(figure_height, dependent_vars)
     data = set_data_type(data, data_type_dict)
-    smoothed_response_positions, position_response_dictionary, scale, data, cluster = get_fitted_responses(data, x_full_length,
-                                                                                            y_full_length, x_col, y_col,
-                                                                                            target_x_col, target_y_col,
-                                                                                            pix2deg_by_name,
-                                                                                            pix2deg_dictionary,
-                                                                                            participant_col,
-                                                                                            condition_dictionary,
-                                                                                            time_col_name, params,
-                                                                                            helper.fit_sigmoid_func,
-                                                                                            results_path)
+    smoothed_response_positions, position_response_dictionary, \
+        scale, data, cluster = get_fitted_responses(data, x_full_length, y_full_length, x_col, y_col,
+                                                    target_x_col, target_y_col, pix2deg_by_name, pix2deg_dictionary,
+                                                    participant_col, condition_dictionary, time_col_name, params,
+                                                    helper.fit_sigmoid_func, results_path)
     metrics = helper.save_dict_as_table(position_response_dictionary, metrics_out_file, participant_col)
     helper.get_average_rates(smoothed_response_positions, scale, condition_dictionary, position_response_dictionary,
                              condition_color_dict, condition_line_dict, 0.95, axs['main'], cluster,
@@ -91,7 +83,7 @@ def analysis_position(data, x_col, y_col, target_x_col, target_y_col, x_full_len
 def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict, baseline_condition_dict, color_dict,
                             line_dict,
                             participant_col, touch_on_col, touch_off_col, smooth_window_size, figure_name,
-                            heatmap_parameters, heatmap_figure_path, heatmap_individual_figure_path, result_path):
+                            heatmap_parameters, heatmap_figure_path, result_path):
 
     participants = np.unique(data[participant_col])
     dictionary = {}
@@ -99,8 +91,8 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
     test_data = set_timings(data, touch_on_col, touch_off_col)
     test_data = test_data[test_data.choiceOrder != 0]
     test_data = test_data.reset_index(drop=True)
-    time = np.arange(min(test_data[test_data.stimJumped == 0][time_column]), max(test_data[test_data.stimJumped == 0][time_column]))
-    all_base_heatmaps = []
+    time = np.arange(min(test_data[test_data.stimJumped == 0][time_column]),
+                     max(test_data[test_data.stimJumped == 0][time_column]))
     baseline_data = test_data.copy(deep=True)
     baseline_name = 'flash- jump-'
 
@@ -118,15 +110,15 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
         for cond in condition_dict:
             dictionary[p][cond] = {}
             feature_dict = condition_dict[cond]
-            feat_data = p_data.copy(deep = True)
+            feat_data = p_data.copy(deep=True)
 
             for feat in feature_dict:
                 feat_data = feat_data[feat_data[feat] == feature_dict[feat]]
                 feat_data = feat_data.reset_index(drop=True)
 
             for col in plot_column_dict:
-                val = [helper.smooth_array(feat_data[plot_column_dict[col]], feat_data[time_column], smooth_window_size, t) for
-                       t in time]
+                val = [helper.smooth_array(feat_data[plot_column_dict[col]], feat_data[time_column],
+                                           smooth_window_size, t_val) for t_val in time]
                 dictionary[p][cond][col] = val
 
             heatmap = helper.make_heatmap(feat_data, heatmap_parameters, time_column, 'flight_times').iloc[::-1]
@@ -136,18 +128,23 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
     significant_clusters = {}
     time_length = []
     for col in plot_column_dict:
-        significant_clusters[col]={}
+        significant_clusters[col] = {}
         base_data = pd.DataFrame([dictionary[p][baseline_name][col] for p in dictionary])
-        time_length.append(base_data.dropna(axis = 1).shape[1])
+        time_length.append(base_data.dropna(axis=1).shape[1])
         for condition in condition_dict:
             if condition == baseline_name:
-               continue
+                continue
             else:
                 warnings.simplefilter("ignore")
                 contrast_data = pd.DataFrame([dictionary[p][condition][col] for p in dictionary])
                 time_length.append(contrast_data.dropna(axis=1).shape[1])
-                clusters, cutoff_value, cluster_over_thresh = cmp.cluster_based_permutation_test(base_data, contrast_data,
-                                                                                         2.093, 1000, 0.05, f'{result_path}/{col}_time_{condition}.csv')
+                clusters, cutoff_value, \
+                    cluster_over_thresh = cmp.cluster_based_permutation_test(base_data,
+                                                                             contrast_data,
+                                                                             2.093,
+                                                                             1000,
+                                                                             0.05,
+                                                                             f'{result_path}/{col}_time_{condition}.csv')
                 significant_clusters[col][condition] = cluster_over_thresh.cluster_location
 
     significant_heatmap_clusters = {}
@@ -157,8 +154,13 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
             continue
         else:
             condition_heatmap = np.array([heatmap_dictionary[x][cond] for x in heatmap_dictionary])
-            hm_clusters, hm_cutoff_value, hm_cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_heatmap, condition_heatmap,
-                                                                                     2.093, 1000, 0.05, f'{result_path}/flight_heatmap_{condition}.csv')
+            hm_clusters, hm_cutoff_value, \
+                hm_cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_heatmap,
+                                                                            condition_heatmap,
+                                                                            2.093,
+                                                                            1000,
+                                                                            0.05,
+                                                                            f'{result_path}/flight_heatmap_{condition}.csv')
             significant_heatmap_clusters[cond] = hm_cluster_over_thresh.cluster_location
 
     make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, significant_clusters,
@@ -168,23 +170,23 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
     return time, dictionary
 
 
-def landing_position_analysis(data, x_touch, y_touch, x_dot_first, y_dot_first, x_dot_second, y_dot_second, pix2deg_dict,
-                              analysis_parameter_dict, onset_column, offset_column, order_column, participant_column,
-                              condition_color_dict, condition_line_dict, figure_path):
+def landing_position_analysis(data, x_touch, y_touch, x_dot_first, y_dot_first, x_dot_second, y_dot_second,
+                              pix2deg_dict, analysis_parameter_dict, onset_column, offset_column, order_column,
+                              participant_column, condition_color_dict, condition_line_dict, figure_path):
 
     data['mid_position_x'] = np.mean([data[x_dot_first], data[x_dot_second]], axis=0)
     data['mid_position_y'] = np.mean([data[y_dot_first], data[y_dot_second]], axis=0)
 
     data['distance_new'] = helper.compute_distance_pythagoras(data[x_touch], data[x_dot_second],
-                                                       data[y_touch], data[y_dot_second])
+                                                              data[y_touch], data[y_dot_second])
     data['distance_new_dva'] = helper.scale_value_by_dict(data, 'distance_new', 'subject', pix2deg_dict)
 
     data['distance_old'] = helper.compute_distance_pythagoras(data[x_touch], data[x_dot_first],
-                                                       data[y_touch], data[y_dot_first])
+                                                              data[y_touch], data[y_dot_first])
     data['distance_old_dva'] = helper.scale_value_by_dict(data, 'distance_old', 'subject', pix2deg_dict)
 
     data['distance_middle'] = helper.compute_distance_pythagoras(data[x_touch], data['mid_position_x'],
-                                                          data[y_touch], data['mid_position_y'])
+                                                                 data[y_touch], data['mid_position_y'])
     data['distance_middle_dva'] = helper.scale_value_by_dict(data, 'distance_middle', 'subject', pix2deg_dict)
 
     labels = ['distance_old_dva', 'distance_middle_dva', 'distance_new_dva']
@@ -296,7 +298,7 @@ def response_density_analysis(data, condition_dict,
         keys = [x for x in condition_dict.keys()]
         density_maps[p]['diff'] = density_maps[p][keys[0]] - density_maps[p][keys[1]]
 
-    fig, axs = plt.subplots(1, 3, figsize = (8.2, 2.5), sharex=True, sharey=True)
+    fig, axs = plt.subplots(1, 3, figsize=(8.2, 2.5), sharex=True, sharey=True)
     cond_one = np.array([density_maps[p][keys[0]] for p in density_maps])
     cond_two = np.array([density_maps[p][keys[1]] for p in density_maps])
     cond_diff = np.array([density_maps[p]['diff'] for p in density_maps])
@@ -307,15 +309,15 @@ def response_density_analysis(data, condition_dict,
                                                                                               2.093, 1000, 0.05,
                                                                                               f'{result_path}/heatmap_tap.csv')
 
-    f1 = sns.heatmap(data = pd.DataFrame(np.mean(cond_one, axis = 0),
-                                         columns=heatmap.columns, index=heatmap.index),
-                     ax=axs[0], vmin = 0, vmax = 0.005, cbar = True)
-    f2 = sns.heatmap(data = pd.DataFrame(np.mean(cond_two, axis = 0),
-                                         columns=heatmap.columns, index=heatmap.index),
-                     ax=axs[1], vmin = 0, vmax = 0.005, cbar = True)
-    f3 = sns.heatmap(data = pd.DataFrame(np.mean(cond_diff, axis = 0),
-                                         columns=heatmap.columns, index=heatmap.index),
-                     ax=axs[2], vmin = -0.0025, vmax = 0.0025, cbar = True)
+    f1 = sns.heatmap(data=pd.DataFrame(np.mean(cond_one, axis=0),
+                                       columns=heatmap.columns, index=heatmap.index),
+                     ax=axs[0], vmin=0, vmax=0.005, cbar=True)
+    f2 = sns.heatmap(data=pd.DataFrame(np.mean(cond_two, axis=0),
+                                       columns=heatmap.columns, index=heatmap.index),
+                     ax=axs[1], vmin=0, vmax=0.005, cbar=True)
+    f3 = sns.heatmap(data=pd.DataFrame(np.mean(cond_diff, axis=0),
+                                       columns=heatmap.columns, index=heatmap.index),
+                     ax=axs[2], vmin=-0.0025, vmax=0.0025, cbar=True)
     plt.tight_layout()
     print(hm_cluster_over_thresh)
     for cluster in hm_cluster_over_thresh.cluster_location:
@@ -339,7 +341,6 @@ def run_anovas(dependent_vars, independent_vars, data, group):
               f'\nINDEPENDENT variables: {[x.upper() for x in independent_vars]}, '
               f'\nGROUPED by: {group.upper()}\n\n')
         print(fitted_anova)
-    # save anovas to csv?
 
 
 def run_ttests(data, dependent_vars, independent_vars_dict):
@@ -354,4 +355,3 @@ def run_ttests(data, dependent_vars, independent_vars_dict):
                   f'\nDEPENDENT variable: {dep_var} ; '
                   f'\nINDEPENDENT variables: {key} at levels {independent_vars_dict[key]}')
             print(results, '\n\n')
-
