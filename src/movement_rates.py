@@ -9,7 +9,7 @@ from src.plotting import plot_single_participant_rates
 
 def get_movement_rates_by_participant(data, onset_column, offset_column, participant_column, analysis_parameter_dict,
                                       order_column, conditions_dict, condition_color_dict, linestyle_dict, baseline_name,
-                                      result_path, plot=False):
+                                      result_path, movement_rate_cluster_file, plot=False):
     participants = np.unique(data[participant_column])
     ref_scale = np.arange(analysis_parameter_dict['window_start'], analysis_parameter_dict['window_end'], 1)
     movement_rates = {}
@@ -35,16 +35,60 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
                                                                                                           'flash+ jump-',
                                                                                                           'flash- jump+',
                                                                                                           'flash+ jump+'])
+    save_data = flash_no_jump_data.copy(deep = True)
+    save_data.columns = ref_scale
+    save_data.to_csv(f'{result_path}/movement_rates_flash_only.csv', index = False)
+
     significant_clusters = {}
+    cluster_row = 0
+    significant_clusters_1d = pd.DataFrame(columns=['condition', 'location', 'start_time',
+                                                    'end_time', 'center_location', 'center_value',
+                                                    'center_location_idx', 'cluster_weight', 'weight_cutoff'])
     for condition, condition_name in zip([flash_no_jump_data, no_flash_jump_data, flash_jump_data], ['flash+ jump-', 'flash- jump+', 'flash+ jump+']):
-        clusters, cutoff_value, cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_data, condition, 2.093, 1000, 0.05, f'{result_path}/rate_cluster_{condition_name}.csv')
+        clusters, cutoff_value, cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_data,
+                                                                                         condition,
+                                                                                         2.093,
+                                                                                         1000,
+                                                                                         0.05,
+                                                                                         f'{result_path}/rate_cluster_{condition_name}.csv') #3.579,
         significant_clusters[condition_name] = cluster_over_thresh.cluster_location
+
+        for cluster_id in clusters:
+            if len(clusters[cluster_id]['cluster_location']) > 0:
+                if not all(np.isnan(clusters[cluster_id]['cluster_values'])):
+                    significant_clusters_1d.loc[cluster_row, 'condition'] = condition_name
+                    significant_clusters_1d.loc[cluster_row, 'location'] = clusters[cluster_id]['cluster_location']
+                    significant_clusters_1d.loc[cluster_row, 'start_time'] = ref_scale[min(
+                        clusters[cluster_id]['cluster_location'])]
+                    significant_clusters_1d.loc[cluster_row, 'end_time'] = ref_scale[max(
+                        clusters[cluster_id]['cluster_location'])]
+
+                    value_loc_df = pd.DataFrame(np.array([clusters[cluster_id]['cluster_location'],
+                                                          clusters[cluster_id]['cluster_values']]).T,
+                                                columns=['location', 'values']).reset_index(drop=True)
+                    weighted_average_location = round(helper.get_weighted_average(value_loc_df,
+                                                                                  'location',
+                                                                                  'values'))
+                    significant_clusters_1d.loc[cluster_row, 'center_location'] = ref_scale[min(
+                        weighted_average_location,
+                        round(max(ref_scale)))]
+                    significant_clusters_1d.loc[cluster_row, 'center_value'] = np.mean(condition)[min(
+                        weighted_average_location,
+                        round(max(ref_scale)))]
+                    significant_clusters_1d.loc[cluster_row, 'center_location_idx'] = weighted_average_location
+                    significant_clusters_1d.loc[cluster_row, 'cluster_weight'] = clusters[cluster_id]['cluster_weight']
+                    significant_clusters_1d.loc[cluster_row, 'weight_cutoff'] = cutoff_value
+                    cluster_row += 1
+    significant_clusters_1d.to_csv(movement_rate_cluster_file, index=False)
 
     for p in participants:
         rate_parameters[p] = {}
         for condition in conditions_dict:
             condition_dict = conditions_dict[condition]
-            parameter_dict = get_rate_parameters(normalized_rates[p][condition], scale, np.ones(len(scale)), analysis_parameter_dict)
+            parameter_dict = get_rate_parameters(normalized_rates[p][condition],
+                                                 scale,
+                                                 np.ones(len(scale)),
+                                                 analysis_parameter_dict)
             rate_parameters[p][condition] = parameter_dict
             rate_parameters[p][condition]['flash_shown'] = conditions_dict[condition]['flashShown']
             rate_parameters[p][condition]['stim_jumped'] = conditions_dict[condition]['stimJumped']
@@ -59,8 +103,6 @@ def get_rate_parameters(rate, scale, base_rate, parameters):
     search_scale, search_rate = filter_rate_and_scale(scale, rate, parameters['search_start'], parameters['search_end'])
     baseline = get_baseline(base_rate)
     value, latency = get_highest_value_latency(search_rate-baseline, search_scale)
-
-    #base_rate = #filter_rate_and_scale(scale, rate, parameters['baseline_start'], parameters['baseline_end'])
     magnitude = value
     dictionary['minimum'] = value + baseline
     dictionary['latency'] = latency
@@ -118,15 +160,13 @@ def normalize_to_mean(dictionary, key):
     means_dict = {}
     normalized_dict = {}
     for outer_key in np.unique(df_all_dict_values['key']):
-        mean_rates = df_all_dict_values[df_all_dict_values['key']!=outer_key]
-        means_dict[outer_key] = mean_rates.mean(axis = 0, numeric_only=True).values
+        mean_rates = df_all_dict_values[df_all_dict_values['key'] != outer_key]
+        means_dict[outer_key] = mean_rates.mean(axis=0, numeric_only=True).values
         normalized_dict[outer_key] = {}
         for inner_key in dictionary[outer_key]:
             normalized_dict[outer_key][inner_key] = dictionary[outer_key][inner_key]/means_dict[outer_key]
 
     return means_dict, normalized_dict
-
-
 
 
 def causal_rate(move_onset, lock_window_start, lock_window_end, n_trials, alpha):

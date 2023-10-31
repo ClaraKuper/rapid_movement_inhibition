@@ -102,6 +102,7 @@ def add_min_label(data, labels, new_col_name):
     data[new_col_name] = closest
     return data
 
+
 def rotate(origin, point, angle):
     # angle in radians
     ox, oy = origin
@@ -116,6 +117,7 @@ def get_position_relative(data, origin, point, name_appendix):
     data[f'{name_appendix}_{point}'] = data[point] - data[origin]
     return data
 
+
 def scramble_columns_piecewise(data, scramble_column, piecewise, name_scrambled, session_name):
     data = data.reset_index(drop = True)
     for s in np.unique(data[session_name]):
@@ -128,6 +130,7 @@ def scramble_columns_piecewise(data, scramble_column, piecewise, name_scrambled,
 
     return data
 
+
 def make_heatmap(data, parameters, x_value_col, y_value_col):
     heatmap_df = pd.DataFrame()
     total_x = abs(parameters['x_min']) + abs(parameters['x_max'])
@@ -136,21 +139,18 @@ def make_heatmap(data, parameters, x_value_col, y_value_col):
     total_y = abs(parameters['y_min']) + abs(parameters['y_max'])
     window_width_y = total_y / parameters['n_row']
 
-    for n_c in np.arange(parameters['x_min'], parameters['x_max'], window_width_x): #range(parameters['n_col']):
-        for n_r in np.arange(parameters['y_min'], parameters['y_max'], window_width_y): #range(parameters['n_row']):
-            x_val = n_c #parameters['x_min'] + n_c * window_width_x
-            y_val = n_r #parameters['y_min'] + n_r * window_width_y
-
+    for n_c in np.arange(parameters['x_min'], parameters['x_max'], window_width_x):
+        for n_r in np.arange(parameters['y_min'], parameters['y_max'], window_width_y):
+            x_val = n_c
+            y_val = n_r
             x_filtered = data[data[x_value_col].between(x_val, x_val + window_width_x)]
             y_filtered = x_filtered[x_filtered[y_value_col].between(y_val, y_val + window_width_y)]
             try:
                 heatmap_df.loc[round(y_val, 5), round(x_val)] = len(y_filtered) / len(data)
             except ZeroDivisionError:
                 heatmap_df.loc[y_val, x_val] = 0
-    #heatmap_df.columns =
-    #heatmap_df.index =
-
     return heatmap_df
+
 
 def get_dataframe_per_condition(data, conditions):
     dataframes = []
@@ -158,6 +158,8 @@ def get_dataframe_per_condition(data, conditions):
         dataframes.append(pd.DataFrame([data[x][condition] for x in data]))
     return dataframes
 
+
 def get_weighted_average(df, column_value, column_weight):
-    weighted_average = (df[column_value] * df[column_weight])/sum(df(column_weight))
+    df = df.dropna(axis=0, how='any')
+    weighted_average = sum((df[column_value] * df[column_weight]))/sum(df[column_weight])
     return weighted_average

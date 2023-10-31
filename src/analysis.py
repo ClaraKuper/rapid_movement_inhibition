@@ -10,7 +10,7 @@ from src.movement_rates import get_movement_rates_by_participant, get_normalized
 from src.trial_by_trial_analysis import set_timings
 from src.touch_position import get_fitted_responses
 from src.json_parsing import set_data_type, filter_data
-from src.plotting import make_figure_rates, plot_metrics,  plot_average_participant_rates, \
+from src.plotting import make_figure_rates, plot_metrics, plot_average_participant_rates, \
     plot_average_participant_position, make_delay_figure, make_latency_heatmaps
 from statsmodels.stats.anova import AnovaRM
 from scipy.stats import ttest_rel, t, sem
@@ -19,7 +19,7 @@ from matplotlib.patches import Rectangle
 
 def analysis_rates(data, onset_column, offset_column, participant_column, analysis_parameter_dict, order_column,
                    conditions_dict, condition_color_dict, linestyle_dict, metrics_out_file, metrics_figure_file,
-                   dependent_vars, independent_vars, baseline_name, result_path):
+                   dependent_vars, independent_vars, baseline_name, result_path, movement_rate_cluster_file):
     """
     Movement Rate Analysis
     - Step 1: Compute Rates for Individual Participants
@@ -39,7 +39,8 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
                                                                                         condition_color_dict,
                                                                                         linestyle_dict,
                                                                                         baseline_name,
-                                                                                        result_path)
+                                                                                        result_path,
+                                                                                        movement_rate_cluster_file)
     metrics = helper.save_dict_as_table(rate_metrics, metrics_out_file, participant_column)
     rate_figure, rate_figure_axs = plt.subplots(1, 1, figsize=(2.5, 2.5))
     helper.get_average_rates(rates,
@@ -55,7 +56,6 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
     rate_figure.savefig(metrics_figure_file)
     plt.show()
     plot_metrics(metrics, dependent_vars, condition_color_dict, result_path)
-
     run_anovas(dependent_vars, independent_vars, metrics, participant_column)
 
 
@@ -81,10 +81,8 @@ def analysis_position(data, x_col, y_col, target_x_col, target_y_col, x_full_len
 
 
 def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict, baseline_condition_dict, color_dict,
-                            line_dict,
-                            participant_col, touch_on_col, touch_off_col, smooth_window_size, figure_name,
-                            heatmap_parameters, heatmap_figure_path, result_path):
-
+                            line_dict, participant_col, touch_on_col, touch_off_col, smooth_window_size, figure_name,
+                            heatmap_parameters, heatmap_figure_path, cluster_1d_path, cluster_2d_path, result_path):
     participants = np.unique(data[participant_col])
     dictionary = {}
     heatmap_dictionary = {}
@@ -126,6 +124,10 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
 
     # cluster based permutation
     significant_clusters = {}
+    significant_clusters_1d = pd.DataFrame(columns=['time_type', 'condition', 'location', 'start_time',
+                                                    'end_time', 'center_location', 'center_value',
+                                                    'cluster_weight', 'weight_cutoff'])
+    cluster_row = 0
     time_length = []
     for col in plot_column_dict:
         significant_clusters[col] = {}
@@ -141,31 +143,110 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
                 clusters, cutoff_value, \
                     cluster_over_thresh = cmp.cluster_based_permutation_test(base_data,
                                                                              contrast_data,
-                                                                             2.093,
+                                                                             2.093,#3.579,
                                                                              1000,
                                                                              0.05,
                                                                              f'{result_path}/{col}_time_{condition}.csv')
                 significant_clusters[col][condition] = cluster_over_thresh.cluster_location
+                for cluster_id in clusters:
+                    if len(clusters[cluster_id]['cluster_location']) > 0:
+                        if not all(np.isnan(clusters[cluster_id]['cluster_values'])):
+                            significant_clusters_1d.loc[cluster_row, 'time_type'] = col
+                            significant_clusters_1d.loc[cluster_row, 'condition'] = condition
+                            significant_clusters_1d.loc[cluster_row, 'location'] = clusters[cluster_id]['cluster_location']
+                            significant_clusters_1d.loc[cluster_row, 'start_time'] = time[min(
+                                clusters[cluster_id]['cluster_location'])]
+                            significant_clusters_1d.loc[cluster_row, 'end_time'] = time[max(
+                                clusters[cluster_id]['cluster_location'])]
+
+                            value_loc_df = pd.DataFrame(np.array([clusters[cluster_id]['cluster_location'],
+                                                                  clusters[cluster_id]['cluster_values']]).T,
+                                                        columns=['location', 'values']).reset_index(drop=True)
+                            weighted_average_location = round(helper.get_weighted_average(value_loc_df,
+                                                                                          'location',
+                                                                                          'values'))
+                            significant_clusters_1d.loc[cluster_row, 'center_location'] = time[min(
+                                weighted_average_location,
+                                round(max(time)))]
+                            significant_clusters_1d.loc[cluster_row, 'center_value'] = np.mean(contrast_data)[min(
+                                weighted_average_location,
+                                round(max(time)))]
+                            significant_clusters_1d.loc[cluster_row, 'cluster_weight'] = clusters[cluster_id]['cluster_weight']
+                            significant_clusters_1d.loc[cluster_row, 'weight_cutoff'] = cutoff_value
+                            cluster_row += 1
+
+    significant_clusters_1d.to_csv(cluster_1d_path)
 
     significant_heatmap_clusters = {}
+    significant_clusters_2d = pd.DataFrame(columns=['condition', 'location', 'start_time',
+                                                    'end_time', 'start_latency', 'end_latency', 'center_time',
+                                                    'center_latency', 'center_time_loc', 'center_latency_loc',
+                                                    'center_value', 'cluster_weight', 'weight_cutoff'])
+    row_idx = 0
     baseline_heatmap = np.array([heatmap_dictionary[x][baseline_name] for x in heatmap_dictionary])
+    baseline_heatmap[np.where(np.isnan(baseline_heatmap))] = 0
+    participants = [x for x in heatmap_dictionary]
     for cond in condition_dict:
         if cond == baseline_name:
             continue
         else:
             condition_heatmap = np.array([heatmap_dictionary[x][cond] for x in heatmap_dictionary])
+            condition_heatmap[np.where(np.isnan(condition_heatmap))] = 0
             hm_clusters, hm_cutoff_value, \
                 hm_cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_heatmap,
                                                                             condition_heatmap,
-                                                                            2.093,
+                                                                            2.093,#3.579,
                                                                             1000,
                                                                             0.05,
-                                                                            f'{result_path}/flight_heatmap_{condition}.csv')
+                                                                            f'{result_path}/flight_heatmap_{condition}.csv',
+                                                                            '2d')
             significant_heatmap_clusters[cond] = hm_cluster_over_thresh.cluster_location
+            hm_time = heatmap_dictionary[participants[0]][baseline_name].columns.values
+            hm_latency = heatmap_dictionary[participants[0]][baseline_name].index.values
 
+            for cluster_id in hm_clusters:
+                if len(hm_clusters[cluster_id]['cluster_location']) > 1:
+                    if not all(np.isnan(hm_clusters[cluster_id]['cluster_values'])):
+                        significant_clusters_2d.loc[row_idx, 'condition'] = cond
+                        significant_clusters_2d.loc[row_idx, 'location'] = hm_clusters[cluster_id]['cluster_location']
+                        significant_clusters_2d.loc[row_idx, 'start_time'] = hm_time[min(
+                            hm_clusters[cluster_id]['cluster_location'][1])]
+                        significant_clusters_2d.loc[row_idx, 'end_time'] = hm_time[max(
+                            hm_clusters[cluster_id]['cluster_location'][1])]
+                        significant_clusters_2d.loc[row_idx, 'start_latency'] = hm_latency[max(
+                            hm_clusters[cluster_id]['cluster_location'][0])]
+                        significant_clusters_2d.loc[row_idx, 'end_latency'] = hm_latency[min(
+                            hm_clusters[cluster_id]['cluster_location'][0])]
+
+                        value_loc_df_time = pd.DataFrame(np.array([hm_clusters[cluster_id]['cluster_location'][1],
+                                                                   hm_clusters[cluster_id]['cluster_values']]).T,
+                                                         columns=['location', 'values']).reset_index(drop=True)
+                        weighted_average_location_time = round(helper.get_weighted_average(value_loc_df_time,
+                                                                                           'location',
+                                                                                           'values'))
+                        significant_clusters_2d.loc[row_idx, 'center_time'] = hm_time[weighted_average_location_time]
+                        significant_clusters_2d.loc[row_idx, 'center_time_loc'] = weighted_average_location_time
+
+                        value_loc_df_latency = pd.DataFrame(np.array([hm_clusters[cluster_id]['cluster_location'][0],
+                                                                      abs(hm_clusters[cluster_id]['cluster_values'])]).T,
+                                                            columns=['location', 'values']).reset_index(drop=True)
+                        weighted_average_location_latency = round(helper.get_weighted_average(value_loc_df_latency,
+                                                                                              'location',
+                                                                                              'values'))
+                        significant_clusters_2d.loc[row_idx, 'center_latency'] = hm_latency[
+                            weighted_average_location_latency]
+                        significant_clusters_2d.loc[row_idx, 'center_latency_loc'] = weighted_average_location_latency
+                        significant_clusters_2d.loc[row_idx, 'center_value'] = np.mean(condition_heatmap, axis=0)[
+                            weighted_average_location_latency][weighted_average_location_time]
+                        significant_clusters_2d.loc[row_idx, 'cluster_weight'] = hm_clusters[cluster_id]['cluster_weight']
+                        significant_clusters_2d.loc[row_idx, 'weight_cutoff'] = hm_cutoff_value
+                        row_idx += 1
+
+    significant_clusters_2d.to_csv(cluster_2d_path, index=False)
     make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, significant_clusters,
                       significant_heatmap_clusters, color_dict, line_dict, figure_name,
-                      heatmap_dictionary, heatmap_figure_path, min(time_length), participant_col)
+                      heatmap_dictionary, heatmap_figure_path,
+                      significant_clusters_2d[significant_clusters_2d.cluster_weight > significant_clusters_2d.weight_cutoff])
 
     return time, dictionary
 
@@ -173,7 +254,6 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
 def landing_position_analysis(data, x_touch, y_touch, x_dot_first, y_dot_first, x_dot_second, y_dot_second,
                               pix2deg_dict, analysis_parameter_dict, onset_column, offset_column, order_column,
                               participant_column, condition_color_dict, condition_line_dict, figure_path):
-
     data['mid_position_x'] = np.mean([data[x_dot_first], data[x_dot_second]], axis=0)
     data['mid_position_y'] = np.mean([data[y_dot_first], data[y_dot_second]], axis=0)
 
@@ -230,8 +310,8 @@ def response_density_analysis(data, condition_dict,
                               position_name, origin_name,
                               dimensions, point_angle_deg,
                               column_names_to_align, participant_col,
-                              parameters, x_value_col, ci, result_path):
-
+                              parameters, x_value_col, ci, result_path,
+                              cluster_table_path):
     center_name = 'centered'
     relative_name = 'relative'
     rotated_name = 'rotated'
@@ -239,7 +319,7 @@ def response_density_analysis(data, condition_dict,
     transform_angle_name = 'transform_angle'
     scaled_touch_name = 'scaled_touch_distance'
 
-    data = data.reset_index(drop = True)
+    data = data.reset_index(drop=True)
     density_maps = {}
     for condition in condition_dict:
         condition_data, condition_index = filter_data(data, condition_dict[condition], return_index=True)
@@ -304,22 +384,74 @@ def response_density_analysis(data, condition_dict,
     cond_diff = np.array([density_maps[p]['diff'] for p in density_maps])
 
     # cluster-based permutation
-
-    hm_clusters, hm_cutoff_value, hm_cluster_over_thresh = cmp.cluster_based_permutation_test(cond_one, cond_two,
+    hm_clusters, hm_cutoff_value, hm_cluster_over_thresh = cmp.cluster_based_permutation_test(cond_one, cond_two,#3.579,
                                                                                               2.093, 1000, 0.05,
-                                                                                              f'{result_path}/heatmap_tap.csv')
+                                                                                              f'{result_path}/heatmap_tap.csv',
+                                                                                              dimensions='2d')
+    row_idx = 0
+    significant_clusters_2d = pd.DataFrame(columns=['location', 'start_time', 'end_time', 'start_rotation',
+                                                    'end_rotation', 'center_time', 'center_rotation', 'center_time_loc',
+                                                    'center_rotation_loc', 'center_value', 'cluster_weight',
+                                                    'weight_cutoff'])
+    participants = [x for x in density_maps]
+    hm_time = density_maps[participants[0]]['diff'].columns.values
+    hm_rotation = density_maps[participants[0]]['diff'].index.values
+
+    for cluster_id in hm_clusters:
+        if len(hm_clusters[cluster_id]['cluster_location'][0]) > 1:
+            if not all(np.isnan(hm_clusters[cluster_id]['cluster_values'])):
+                #print(np.isnanhm_clusters[cluster_id]['cluster_values'] == np.nan)
+                significant_clusters_2d.loc[row_idx, 'location'] = hm_clusters[cluster_id]['cluster_location']
+                significant_clusters_2d.loc[row_idx, 'start_time'] = hm_time[min(
+                    hm_clusters[cluster_id]['cluster_location'][1])]
+                significant_clusters_2d.loc[row_idx, 'end_time'] = hm_time[max(
+                    hm_clusters[cluster_id]['cluster_location'][1])]
+                significant_clusters_2d.loc[row_idx, 'start_rotation'] = hm_rotation[min(
+                    hm_clusters[cluster_id]['cluster_location'][0])]
+                significant_clusters_2d.loc[row_idx, 'end_rotation'] = hm_rotation[max(
+                    hm_clusters[cluster_id]['cluster_location'][0])]
+
+                value_loc_df_time = pd.DataFrame(np.array([hm_clusters[cluster_id]['cluster_location'][1],
+                                                           abs(hm_clusters[cluster_id]['cluster_values'])]).T,
+                                                 columns=['location', 'values']).reset_index(drop=True)
+                weighted_average_location_time = round(helper.get_weighted_average(value_loc_df_time,
+                                                                                   'location',
+                                                                                   'values'))
+                significant_clusters_2d.loc[row_idx, 'center_time'] = hm_time[weighted_average_location_time]
+                significant_clusters_2d.loc[row_idx, 'center_time_loc'] = weighted_average_location_time
+
+                value_loc_df_latency = pd.DataFrame(np.array([hm_clusters[cluster_id]['cluster_location'][0],
+                                                              abs(hm_clusters[cluster_id]['cluster_values'])]).T,
+                                                    columns=['location', 'values']).reset_index(drop=True)
+                weighted_average_location_latency = round(helper.get_weighted_average(value_loc_df_latency,
+                                                                                      'location',
+                                                                                      'values'))
+                significant_clusters_2d.loc[row_idx, 'center_rotation'] = hm_rotation[
+                    weighted_average_location_latency]
+                significant_clusters_2d.loc[row_idx, 'center_rotation_loc'] = weighted_average_location_latency
+                significant_clusters_2d.loc[row_idx, 'center_value'] = np.mean(cond_diff, axis=0)[
+                    weighted_average_location_latency][weighted_average_location_time]
+                significant_clusters_2d.loc[row_idx, 'cluster_weight'] = hm_clusters[cluster_id]['cluster_weight']
+                significant_clusters_2d.loc[row_idx, 'weight_cutoff'] = hm_cutoff_value
+                row_idx += 1
+    cluster_df = significant_clusters_2d[significant_clusters_2d.cluster_weight > significant_clusters_2d.weight_cutoff]
+    significant_clusters_2d.to_csv(cluster_table_path)
 
     f1 = sns.heatmap(data=pd.DataFrame(np.mean(cond_one, axis=0),
-                                       columns=heatmap.columns, index=heatmap.index),
-                     ax=axs[0], vmin=0, vmax=0.005, cbar=True)
+                                       columns=heatmap.columns,
+                                       index=heatmap.index),
+                     ax=axs[0], vmin=0, vmax=0.004, cbar=True, cmap='Greys')
     f2 = sns.heatmap(data=pd.DataFrame(np.mean(cond_two, axis=0),
                                        columns=heatmap.columns, index=heatmap.index),
-                     ax=axs[1], vmin=0, vmax=0.005, cbar=True)
+                     ax=axs[1], vmin=0, vmax=0.004, cbar=True, cmap='Greys')
     f3 = sns.heatmap(data=pd.DataFrame(np.mean(cond_diff, axis=0),
                                        columns=heatmap.columns, index=heatmap.index),
-                     ax=axs[2], vmin=-0.0025, vmax=0.0025, cbar=True)
+                     ax=axs[2], vmin=-0.002, vmax=0.002, cbar=True, cmap='vlag')
+    for idx in cluster_df.index:
+        axs[2].scatter(cluster_df.loc[idx, 'center_time_loc'],
+                       cluster_df.loc[idx, 'center_rotation_loc'],
+                       marker='+', color='black')
     plt.tight_layout()
-    print(hm_cluster_over_thresh)
     for cluster in hm_cluster_over_thresh.cluster_location:
         for array in np.array(cluster).T:
             f3.add_patch(Rectangle((array[1], array[0]), 1, 1, fill=True, alpha=0.2, edgecolor='none'))
@@ -346,7 +478,7 @@ def run_anovas(dependent_vars, independent_vars, data, group):
 def run_ttests(data, dependent_vars, independent_vars_dict):
     for dep_var in dependent_vars:
         for key in independent_vars_dict:
-            assert(len(independent_vars_dict[key]) == 2)
+            assert (len(independent_vars_dict[key]) == 2)
             set_one = data[data[key] == independent_vars_dict[key][0]][dep_var].values
             set_two = data[data[key] == independent_vars_dict[key][1]][dep_var].values
             results = ttest_rel(set_one, set_two, nan_policy='omit')
