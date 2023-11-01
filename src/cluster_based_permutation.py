@@ -28,7 +28,7 @@ def cluster_based_permutation_test(condition_a, condition_b, critical_t, n_reps,
     cluster_df = pd.DataFrame.from_dict(clusters).T
     permutated_clusters, cutoff_value = random_permutation(condition_difference, critical_t, n_reps, percentile,
                                                            dimensions, random_seed)
-    cluster_over_thresh = cluster_df[cluster_df['cluster_weight'] > cutoff_value]
+    cluster_over_thresh = cluster_df[abs(cluster_df['cluster_weight']) > cutoff_value]
     cluster_over_thresh['cutoff_value'] = cutoff_value
     cluster_df['cutoff_value'] = cutoff_value
     # cluster_df.to_csv(result_path, index=False)
@@ -128,7 +128,7 @@ def find_clusters(values_to_compare, critical_value, dimensions, ignore_inf=True
             all_clusters[cluster] = {}
             all_clusters[cluster]['cluster_id'] = cluster_id
             all_clusters[cluster]['cluster_size'] = len(current_cluster)
-            all_clusters[cluster]['cluster_weight'] = abs(np.nansum(current_cluster))
+            all_clusters[cluster]['cluster_weight'] = np.nansum(current_cluster)
             if all_clusters[cluster]['cluster_weight'] == np.inf or all_clusters[cluster]['cluster_weight'] == np.nan:
                 raise ValueError(f"The cluster weight could not be computed. "
                                  f"Cluster weight is {all_clusters[cluster]['cluster_weight']}")
