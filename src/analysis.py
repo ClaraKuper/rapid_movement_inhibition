@@ -19,6 +19,7 @@ from matplotlib.patches import Rectangle
 
 def analysis_rates(data, onset_column, offset_column, participant_column, analysis_parameter_dict, order_column,
                    conditions_dict, condition_color_dict, linestyle_dict, metrics_out_file, metrics_figure_file,
+                   raw_figure_file,
                    dependent_vars, independent_vars, baseline_name, result_path, movement_rate_cluster_file):
     """
     Movement Rate Analysis
@@ -29,7 +30,7 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
     - Step 5: Plot metrics
     """
 
-    rates, rate_metrics, scale, significant_cluster = get_movement_rates_by_participant(data,
+    rates, raw_rates, rate_metrics, scale, significant_cluster = get_movement_rates_by_participant(data,
                                                                                         onset_column,
                                                                                         offset_column,
                                                                                         participant_column,
@@ -52,8 +53,23 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
                              0.95,
                              rate_figure_axs,
                              significant_cluster,
+                             1.5,
                              plot_average_participant_rates)
     rate_figure.savefig(metrics_figure_file)
+    plt.show()
+    rate_figure_raw, rate_figure_raw_axs = plt.subplots(1, 1, figsize=(2.5, 2.5))
+    helper.get_average_rates(raw_rates,
+                             scale,
+                             conditions_dict,
+                             pd.DataFrame(),
+                             condition_color_dict,
+                             linestyle_dict,
+                             0.95,
+                             rate_figure_raw_axs,
+                             significant_cluster,
+                             6,
+                             plot_average_participant_rates)
+    rate_figure_raw.savefig(raw_figure_file)
     plt.show()
     plot_metrics(metrics, dependent_vars, condition_color_dict, result_path)
     run_anovas(dependent_vars, independent_vars, metrics, participant_column)
@@ -141,8 +157,8 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
                 contrast_data = pd.DataFrame([dictionary[p][condition][col] for p in dictionary])
                 time_length.append(contrast_data.dropna(axis=1).shape[1])
                 clusters, cutoff_value, \
-                    cluster_over_thresh = cmp.cluster_based_permutation_test(base_data,
-                                                                             contrast_data,
+                    cluster_over_thresh = cmp.cluster_based_permutation_test(contrast_data,
+                                                                             base_data,
                                                                              2.093,#3.579,
                                                                              1000,
                                                                              0.05,
@@ -193,8 +209,8 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
             condition_heatmap = np.array([heatmap_dictionary[x][cond] for x in heatmap_dictionary])
             condition_heatmap[np.where(np.isnan(condition_heatmap))] = 0
             hm_clusters, hm_cutoff_value, \
-                hm_cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_heatmap,
-                                                                            condition_heatmap,
+                hm_cluster_over_thresh = cmp.cluster_based_permutation_test(condition_heatmap,
+                                                                            baseline_heatmap,
                                                                             2.093,#3.579,
                                                                             1000,
                                                                             0.05,
@@ -246,7 +262,7 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
     make_delay_figure(dictionary, test_data, condition_dict, plot_column_dict.keys(), time, significant_clusters,
                       significant_heatmap_clusters, color_dict, line_dict, figure_name,
                       heatmap_dictionary, heatmap_figure_path,
-                      significant_clusters_2d[significant_clusters_2d.cluster_weight > significant_clusters_2d.weight_cutoff])
+                      significant_clusters_2d[abs(significant_clusters_2d.cluster_weight) > significant_clusters_2d.weight_cutoff])
 
     return time, dictionary
 
@@ -434,7 +450,7 @@ def response_density_analysis(data, condition_dict,
                 significant_clusters_2d.loc[row_idx, 'cluster_weight'] = hm_clusters[cluster_id]['cluster_weight']
                 significant_clusters_2d.loc[row_idx, 'weight_cutoff'] = hm_cutoff_value
                 row_idx += 1
-    cluster_df = significant_clusters_2d[significant_clusters_2d.cluster_weight > significant_clusters_2d.weight_cutoff]
+    cluster_df = significant_clusters_2d[abs(significant_clusters_2d.cluster_weight) > significant_clusters_2d.weight_cutoff]
     significant_clusters_2d.to_csv(cluster_table_path)
 
     f1 = sns.heatmap(data=pd.DataFrame(np.mean(cond_one, axis=0),

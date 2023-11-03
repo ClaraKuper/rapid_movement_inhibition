@@ -45,8 +45,8 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
                                                     'end_time', 'center_location', 'center_value',
                                                     'center_location_idx', 'cluster_weight', 'weight_cutoff'])
     for condition, condition_name in zip([flash_no_jump_data, no_flash_jump_data, flash_jump_data], ['flash+ jump-', 'flash- jump+', 'flash+ jump+']):
-        clusters, cutoff_value, cluster_over_thresh = cmp.cluster_based_permutation_test(baseline_data,
-                                                                                         condition,
+        clusters, cutoff_value, cluster_over_thresh = cmp.cluster_based_permutation_test(condition,
+                                                                                         baseline_data,
                                                                                          2.093,
                                                                                          1000,
                                                                                          0.05,
@@ -95,7 +95,7 @@ def get_movement_rates_by_participant(data, onset_column, offset_column, partici
 
     if plot:
         plot_single_participant_rates(normalized_rates, scale, rate_parameters, condition_color_dict)
-    return normalized_rates, rate_parameters, scale, significant_clusters
+    return normalized_rates, movement_rates, rate_parameters, scale, significant_clusters
 
 
 def get_rate_parameters(rate, scale, base_rate, parameters):

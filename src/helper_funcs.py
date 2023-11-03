@@ -76,7 +76,8 @@ def pythagoras(x_value, y_value):
     return np.sqrt(x_value**2 + y_value**2)
 
 
-def get_average_rates(rates, scale, conditions, parameters, condition_color_dict, linestyle_dict, ci, axs, cluster, plotting_func):
+def get_average_rates(rates, scale, conditions, parameters, condition_color_dict,
+                      linestyle_dict, ci, axs, cluster, y_lim, plotting_func):
     rates_dict = {}
     ci_dict = {}
     for cond in conditions:
@@ -90,7 +91,7 @@ def get_average_rates(rates, scale, conditions, parameters, condition_color_dict
         ci_dict[cond]['ci_upper'] = ci_upper
         ci_dict[cond]['ci_lower'] = ci_lower
 
-    plotting_func(rates_dict, ci_dict, scale, parameters, cluster, condition_color_dict, linestyle_dict, axs)
+    plotting_func(rates_dict, ci_dict, scale, parameters, cluster, condition_color_dict, linestyle_dict, axs, y_lim)
     # return rates_dict, scale
 
 

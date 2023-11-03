@@ -37,7 +37,7 @@ def plot_single_participant_rates(movement_rates, scale, parameters, color_dict,
 
 
 def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, cluster, color_dict,
-                                   line_dict, axs):
+                                   line_dict, axs, upper_y = 1.5):
     for condition in movement_rates:
         upper_lim = []
         axs.plot(scale,
@@ -62,7 +62,7 @@ def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, c
         for c in cluster[cond]:
             axs.hlines(sig_line, scale[min(c)], scale[max(c)], colors=color_dict[cond], linestyles=line_dict[cond])
         sig_line += 0.02
-    axs.set_ylim([-0.1, 1.5])
+    axs.set_ylim([-0.1, upper_y])
     axs.set_xlim([-200, 850])
     axs.set_xlabel('time [ms] since event')
     axs.set_ylabel('movement rates [onsets/s]')
@@ -160,8 +160,8 @@ def make_delay_figure(delay_dict, data, conditions, measured_times, time, signif
             cond_data = cond_data[cond_data[f] == feat[f]]
 
         for t in measured_times:
-
             vals = [delay_dict[p][cond][t] for p in delay_dict]
+            print(f'{t}, {cond} has a standard deviation of {np.nanstd(vals)}')
             mean_vals = np.mean(vals, axis=0)
             ci_lower, ci_upper = st.t.interval(confidence=0.95, df=len(vals) - 1,
                                                loc=mean_vals,
