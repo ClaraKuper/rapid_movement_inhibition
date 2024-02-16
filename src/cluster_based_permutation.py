@@ -3,7 +3,7 @@ import pandas as pd
 from scipy import ndimage
 
 
-def cluster_based_permutation_test(condition_a, condition_b, critical_t, n_reps, percentile, result_path,
+def cluster_based_permutation_test(condition_a, condition_b, critical_t, n_reps, percentile,
                                    dimensions='1d', random_seed=22092023):
     """
     gets clusters above a critical t-value compares them to clusters arrising by chance
@@ -23,15 +23,17 @@ def cluster_based_permutation_test(condition_a, condition_b, critical_t, n_reps,
               f"{condition_difference.shape[0]} rows - "
               f"than columns (time points) - {condition_difference.shape[1]} columns - in the "
               f"measurement. \nPlease make sure that this is correct.")
+
     t_values = t_stats(condition_difference)
     clusters = find_clusters(t_values, critical_t, dimensions)
     cluster_df = pd.DataFrame.from_dict(clusters).T
-    permutated_clusters, cutoff_value = random_permutation(condition_difference, critical_t, n_reps, percentile,
-                                                           dimensions, random_seed)
-    cluster_over_thresh = cluster_df[abs(cluster_df['cluster_weight']) > cutoff_value]
-    cluster_over_thresh['cutoff_value'] = cutoff_value
-    cluster_df['cutoff_value'] = cutoff_value
-    # cluster_df.to_csv(result_path, index=False)
+    permutated_clusters, cutoff_value = random_permutation(condition_difference, critical_t, n_reps,
+                                                           percentile, dimensions, random_seed)
+
+    cluster_over_thresh = cluster_df[abs(cluster_df['cluster_weight']) > cutoff_value].reset_index(drop=True)
+    cluster_over_thresh.loc[:, 'cutoff_value'] = cutoff_value
+    cluster_df.loc[:, 'cutoff_value'] = cutoff_value
+
     return clusters, cutoff_value, cluster_over_thresh
 
 
@@ -78,8 +80,6 @@ def random_permutation(data, critical_t, n_reps, percentile, dimensions, random_
 
     return permutated_cluster_df, cutoff_value
 
-    # find cluster that maximizes measurement
-
 
 def get_random_permutation_matrix(nrow, ncol, random_seed):
     """
@@ -97,8 +97,8 @@ def find_clusters(values_to_compare, critical_value, dimensions, ignore_inf=True
     """
     all_clusters = {}
     over_critical = abs(values_to_compare) >= critical_value
-    over_critical_test = over_critical*np.sign(values_to_compare)
-    over_critical_positions, n_clusters = ndimage.label(over_critical_test)
+    over_critical_sign = over_critical*np.sign(values_to_compare)
+    over_critical_positions, n_clusters = ndimage.label(over_critical_sign)
     if n_clusters == 0:
         cluster = 0
         all_clusters[cluster] = {}
@@ -121,7 +121,6 @@ def find_clusters(values_to_compare, critical_value, dimensions, ignore_inf=True
                 cluster_location = np.where(over_critical_positions == cluster_id)
                 current_cluster = np.array(values_to_compare)[cluster_location]
                 if ignore_inf:
-                    #cluster_location = np.array(cluster_location)[np.where(abs(current_cluster) != np.inf)]
                     current_cluster = np.array(current_cluster)[np.where(abs(current_cluster) != np.inf)]
             else:
                 raise NotImplementedError('Only 1d and 2d arrays are implemented!')
@@ -140,10 +139,10 @@ def find_clusters(values_to_compare, critical_value, dimensions, ignore_inf=True
 
 def t_stats(values):
     """
-    takes a data frame (values) and returns the t-statistic across rows
+    takes a data frame (values) and returns the t-statistic
     """
     t_vals = np.mean(values, axis=0) / (np.std(values, axis=0) / np.sqrt(values.shape[0] - 1))
     t_vals = np.array(t_vals)
+    # set t-values that could not be computed to zero
     t_vals[np.where(np.isnan(abs(t_vals)))] = 0
-    #print(t_vals)
     return t_vals
