@@ -1,6 +1,5 @@
 import math
 import numpy as np
-import os
 import pandas as pd
 import scipy.stats as st
 from scipy.optimize import curve_fit
@@ -165,18 +164,3 @@ def get_weighted_average(df, column_value, column_weight):
     df = df.dropna(axis=0, how='any')
     weighted_average = sum((df[column_value] * df[column_weight]))/sum(df[column_weight])
     return weighted_average
-
-
-def save_file(file, path, filename, check_directory=True):
-    full_path = f'{path}/{filename}'
-    if check_directory:
-        if os.path.exists(full_path):
-            overwrite = input(f"{full_path} exists already! Shall I overwrite it? (Y|N) \n")
-            if overwrite.upper() == "N":
-                return full_path
-            if overwrite.upper() == "Y":
-                pass
-            else:
-                raise NotImplementedError(f'"{overwrite}" is not a specified input to this function')
-    file.to_csv(full_path, index=False)
-    return full_path

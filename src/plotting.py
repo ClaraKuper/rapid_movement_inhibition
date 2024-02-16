@@ -36,52 +36,37 @@ def plot_single_participant_rates(movement_rates, scale, parameters, color_dict,
     plt.tight_layout()
 
 
-def plot_average_participant_rates(input_rate_file, input_cluster_file, color_dict,
-                                   line_dict, figure_params, output_file, condition_column='condition'):
-
-    rates = pd.read_csv(input_rate_file)
-    clusters = pd.read_csv(input_cluster_file)
-    scale = rates.select_dtypes(['number']).columns.values.astype(int)
-
-    figure, axs = plt.subplots(1, 1, figsize=(figure_params['width'], figure_params['height']))
-    sig_line = figure_params['start_cluster_lines_at']
-
-    for condition in color_dict:
-        condition_rates = rates[rates[condition_column] == condition].select_dtypes(['number'])
-        condition_clusters = clusters[clusters[condition_column] == condition]
-        if figure_params['plot_only_significant_cluster']:
-            condition_clusters = condition_clusters[
-                abs(condition_clusters['cluster_weight']) >= abs(condition_clusters['cutoff_weight'])]
-        mean_rate = condition_rates.mean(numeric_only=True)
-        ci_upper, ci_lower = st.t.interval(alpha=figure_params['ci'], df=len(condition_rates) - 1,
-                                           loc=mean_rate,
-                                           scale=st.sem(condition_rates))
+def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, cluster, color_dict,
+                                   line_dict, axs, upper_y = 1.5):
+    for condition in movement_rates:
+        upper_lim = []
         axs.plot(scale,
-                 mean_rate,
+                 movement_rates[condition],
                  color=color_dict[condition],
-                 linestyle=line_dict[condition],
+                 linestyle = line_dict[condition],
                  label=condition,
-                 linewidth=figure_params['linewidth'])
-
+                 linewidth=1)
         axs.fill_between(scale,
-                         ci_upper,
-                         ci_lower,
-                         alpha=figure_params['sem_alpha'],
+                         ci_dict[condition]['ci_upper'],
+                         ci_dict[condition]['ci_lower'],
+                         alpha=0.3,
                          color=color_dict[condition])
+        latencies = [parameters[p][condition]['latency'] for p in parameters]
+        minimum = [parameters[p][condition]['minimum'] for p in parameters]
+        upper_lim.append(min(6, max(ci_dict[condition]['ci_upper'])))
 
-        for cluster in condition_clusters.index:
-            axs.hlines(sig_line,
-                       condition_clusters.loc[cluster, 'start_time'],
-                       condition_clusters.loc[cluster, 'end_time'],
-                       colors=color_dict[condition],
-                       linestyles=line_dict[condition])
-        sig_line += figure_params['space_cluster_lines_by']
-    axs.set_ylim([figure_params['lower_y'], figure_params['upper_y']])
-    axs.set_xlim([figure_params['lower_x'], figure_params['upper_x']])
-    axs.set_xlabel(figure_params['x_title'])
-    axs.set_ylabel(figure_params['y_title'])
-    # axs.legend()
-    figure.savefig(output_file)
+        axs.scatter(latencies, minimum, color=[color_dict[condition], "White"][int(line_dict[condition] == '--')], edgecolors=color_dict[condition], alpha=1, s=3)
+    sig_line = 0
+
+    for cond in cluster:
+        for c in cluster[cond]:
+            axs.hlines(sig_line, scale[min(c)], scale[max(c)], colors=color_dict[cond], linestyles=line_dict[cond])
+        sig_line += 0.02
+    axs.set_ylim([-0.1, upper_y])
+    axs.set_xlim([-200, 850])
+    axs.set_xlabel('time [ms] since event')
+    axs.set_ylabel('movement rates [onsets/s]')
+    axs.legend()
 
 
 def make_figure_rates(height, sides):

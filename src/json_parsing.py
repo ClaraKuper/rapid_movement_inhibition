@@ -154,7 +154,6 @@ def set_data_type(data, dictionary):
         data[key] = data[key].astype(dictionary[key])
     return data
 
-
 def add_participant_id(data, dictionary, col_name, condition_letter, id_col_name, ses_col_name, participant_letter = 'P'):
     for s in dictionary:
         p_number = dictionary[s].upper().split(condition_letter)[0]
