@@ -29,7 +29,6 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
     - Step 4: Plot Rates
     - Step 5: Plot metrics
     """
-
     rates, raw_rates, rate_metrics, scale, significant_cluster = get_movement_rates_by_participant(data,
                                                                                         onset_column,
                                                                                         offset_column,
@@ -42,6 +41,15 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
                                                                                         baseline_name,
                                                                                         result_path,
                                                                                         movement_rate_cluster_file)
+    raw_data = pd.DataFrame()
+    for c in raw_rates:
+        frame = pd.DataFrame.from_dict(raw_rates[c]).T
+        frame.columns = scale
+        frame['participant'] = c
+        raw_data = pd.concat([raw_data, frame])
+    raw_data = raw_data.reset_index()
+    raw_data.rename({'index': 'condition'})
+    # raw_data.to_csv('../../../results/inlab/results_target/movement_rates_raw_target.csv', index = False)
     metrics = helper.save_dict_as_table(rate_metrics, metrics_out_file, participant_column)
     rate_figure, rate_figure_axs = plt.subplots(1, 1, figsize=(2.5, 2.5))
     helper.get_average_rates(rates,
@@ -53,7 +61,7 @@ def analysis_rates(data, onset_column, offset_column, participant_column, analys
                              0.95,
                              rate_figure_axs,
                              significant_cluster,
-                             1.5,
+                             2,
                              plot_average_participant_rates)
     rate_figure.savefig(metrics_figure_file)
     plt.show()
@@ -88,8 +96,9 @@ def analysis_position(data, x_col, y_col, target_x_col, target_y_col, x_full_len
                                                     helper.fit_sigmoid_func, results_path)
     metrics = helper.save_dict_as_table(position_response_dictionary, metrics_out_file, participant_col)
     helper.get_average_rates(smoothed_response_positions, scale, condition_dictionary, position_response_dictionary,
-                             condition_color_dict, condition_line_dict, 0.95, axs['main'], cluster,
+                             condition_color_dict, condition_line_dict, 0.95, axs['main'], cluster, 1.5,
                              plot_average_participant_position)
+
     plot_metrics(metrics, dependent_vars, condition_color_dict, results_path)
     run_ttests(metrics, dependent_vars, independent_vars_dict)
 
@@ -142,7 +151,7 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
     significant_clusters = {}
     significant_clusters_1d = pd.DataFrame(columns=['time_type', 'condition', 'location', 'start_time',
                                                     'end_time', 'center_location', 'center_value',
-                                                    'cluster_weight', 'weight_cutoff'])
+                                                    'cluster_weight', 'weight_cutoff', 'SEM', 'base mean', 'base SEM'])
     cluster_row = 0
     time_length = []
     for col in plot_column_dict:
@@ -167,29 +176,39 @@ def trial_by_trial_analysis(data, time_column, plot_column_dict, condition_dict,
                 for cluster_id in clusters:
                     if len(clusters[cluster_id]['cluster_location']) > 0:
                         if not all(np.isnan(clusters[cluster_id]['cluster_values'])):
-                            significant_clusters_1d.loc[cluster_row, 'time_type'] = col
-                            significant_clusters_1d.loc[cluster_row, 'condition'] = condition
-                            significant_clusters_1d.loc[cluster_row, 'location'] = clusters[cluster_id]['cluster_location']
-                            significant_clusters_1d.loc[cluster_row, 'start_time'] = time[min(
-                                clusters[cluster_id]['cluster_location'])]
-                            significant_clusters_1d.loc[cluster_row, 'end_time'] = time[max(
-                                clusters[cluster_id]['cluster_location'])]
+                            if abs(clusters[cluster_id]['cluster_weight']) >= 0.8 * cutoff_value:
+                                significant_clusters_1d.loc[cluster_row, 'time_type'] = col
+                                significant_clusters_1d.loc[cluster_row, 'condition'] = condition
+                                significant_clusters_1d.loc[cluster_row, 'location'] = clusters[cluster_id]['cluster_location']
+                                significant_clusters_1d.loc[cluster_row, 'start_time'] = time[min(
+                                    clusters[cluster_id]['cluster_location'])]
+                                significant_clusters_1d.loc[cluster_row, 'end_time'] = time[max(
+                                    clusters[cluster_id]['cluster_location'])]
 
-                            value_loc_df = pd.DataFrame(np.array([clusters[cluster_id]['cluster_location'],
-                                                                  clusters[cluster_id]['cluster_values']]).T,
-                                                        columns=['location', 'values']).reset_index(drop=True)
-                            weighted_average_location = round(helper.get_weighted_average(value_loc_df,
-                                                                                          'location',
-                                                                                          'values'))
-                            significant_clusters_1d.loc[cluster_row, 'center_location'] = time[min(
-                                weighted_average_location,
-                                round(max(time)))]
-                            significant_clusters_1d.loc[cluster_row, 'center_value'] = np.mean(contrast_data)[min(
-                                weighted_average_location,
-                                round(max(time)))]
-                            significant_clusters_1d.loc[cluster_row, 'cluster_weight'] = clusters[cluster_id]['cluster_weight']
-                            significant_clusters_1d.loc[cluster_row, 'weight_cutoff'] = cutoff_value
-                            cluster_row += 1
+                                value_loc_df = pd.DataFrame(np.array([clusters[cluster_id]['cluster_location'],
+                                                                      clusters[cluster_id]['cluster_values']]).T,
+                                                            columns=['location', 'values']).reset_index(drop=True)
+                                weighted_average_location = round(helper.get_weighted_average(value_loc_df,
+                                                                                              'location',
+                                                                                              'values'))
+                                significant_clusters_1d.loc[cluster_row, 'center_location'] = time[min(
+                                    weighted_average_location,
+                                    round(max(time)))]
+                                significant_clusters_1d.loc[cluster_row, 'center_value'] = np.mean(contrast_data, axis = 0)[min(
+                                    weighted_average_location,
+                                    round(max(time)))]
+                                significant_clusters_1d.loc[cluster_row, 'cluster_weight'] = clusters[cluster_id]['cluster_weight']
+                                significant_clusters_1d.loc[cluster_row, 'weight_cutoff'] = cutoff_value
+                                significant_clusters_1d.loc[cluster_row, 'SEM'] = sem(contrast_data, axis = 0)[min(
+                                    weighted_average_location,
+                                    round(max(time)))]
+                                significant_clusters_1d.loc[cluster_row, 'base mean'] = np.mean(base_data, axis = 0)[min(
+                                    weighted_average_location,
+                                    round(max(time)))]
+                                significant_clusters_1d.loc[cluster_row, 'base SEM'] = sem(base_data, axis=0)[min(
+                                    weighted_average_location,
+                                    round(max(time)))]
+                                cluster_row += 1
 
     significant_clusters_1d.to_csv(cluster_1d_path)
 
@@ -313,7 +332,7 @@ def landing_position_analysis(data, x_touch, y_touch, x_dot_first, y_dot_first, 
                              {},
                              condition_color_dict,
                              condition_line_dict,
-                             0.95, axs, [],
+                             0.95, axs, [], 6,
                              plot_average_participant_rates)
 
     axs.set_xlim([-500, 800])
@@ -452,25 +471,25 @@ def response_density_analysis(data, condition_dict,
                 row_idx += 1
     cluster_df = significant_clusters_2d[abs(significant_clusters_2d.cluster_weight) > significant_clusters_2d.weight_cutoff]
     significant_clusters_2d.to_csv(cluster_table_path)
-
     f1 = sns.heatmap(data=pd.DataFrame(np.mean(cond_one, axis=0),
                                        columns=heatmap.columns,
-                                       index=heatmap.index),
-                     ax=axs[0], vmin=0, vmax=0.004, cbar=True, cmap='Greys')
+                                       index=heatmap.index).loc[:, np.arange(-200, 850, 20)],
+                     ax=axs[0], vmin=0, vmax=0.002, cbar=True, cmap='Greys', xticklabels=5, yticklabels=5)
     f2 = sns.heatmap(data=pd.DataFrame(np.mean(cond_two, axis=0),
-                                       columns=heatmap.columns, index=heatmap.index),
-                     ax=axs[1], vmin=0, vmax=0.004, cbar=True, cmap='Greys')
+                                       columns=heatmap.columns, index=heatmap.index).loc[:, np.arange(-200, 850, 20)],
+                     ax=axs[1], vmin=0, vmax=0.002, cbar=True, cmap='Greys',xticklabels=5, yticklabels=5)
     f3 = sns.heatmap(data=pd.DataFrame(np.mean(cond_diff, axis=0),
-                                       columns=heatmap.columns, index=heatmap.index),
-                     ax=axs[2], vmin=-0.002, vmax=0.002, cbar=True, cmap='vlag')
+                                       columns=heatmap.columns, index=heatmap.index).loc[:, np.arange(-200, 850, 20)],
+                     ax=axs[2], vmin=-0.001, vmax=0.001, cbar=True, cmap='vlag', xticklabels=5, yticklabels=5)
     for idx in cluster_df.index:
-        axs[2].scatter(cluster_df.loc[idx, 'center_time_loc'],
+        axs[2].scatter(cluster_df.loc[idx, 'center_time_loc'] - np.where(heatmap.columns == -200)[0],
                        cluster_df.loc[idx, 'center_rotation_loc'],
                        marker='+', color='black')
+
     plt.tight_layout()
     for cluster in hm_cluster_over_thresh.cluster_location:
         for array in np.array(cluster).T:
-            f3.add_patch(Rectangle((array[1], array[0]), 1, 1, fill=True, alpha=0.2, edgecolor='none'))
+            f3.add_patch(Rectangle((array[1] - np.where(heatmap.columns == -200)[0][0], array[0]), 1, 1, fill=True, alpha=0.2, edgecolor='none'))
 
     fig.savefig(f'{result_path}/heatmap_response_densities.svg')
     return density_maps

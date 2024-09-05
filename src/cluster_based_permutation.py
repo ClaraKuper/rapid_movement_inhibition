@@ -29,8 +29,11 @@ def cluster_based_permutation_test(condition_a, condition_b, critical_t, n_reps,
     permutated_clusters, cutoff_value = random_permutation(condition_difference, critical_t, n_reps, percentile,
                                                            dimensions, random_seed)
     cluster_over_thresh = cluster_df[abs(cluster_df['cluster_weight']) > cutoff_value]
-    cluster_over_thresh['cutoff_value'] = cutoff_value
-    cluster_df['cutoff_value'] = cutoff_value
+    cutoff_series = pd.Series(data=[cutoff_value] * len(cluster_over_thresh), name = 'cutoff_value', index = cluster_over_thresh.index, dtype = float)
+    cluster_over_thresh = pd.concat([cluster_over_thresh, cutoff_series], axis = 1)
+
+    cutoff_series_all = pd.Series(data=[cutoff_value] * len(cluster_df), name = 'cutoff_value', index = cluster_df.index, dtype = float)
+    cluster_df = pd.concat([cluster_df, cutoff_series_all], axis = 1)
     # cluster_df.to_csv(result_path, index=False)
     return clusters, cutoff_value, cluster_over_thresh
 

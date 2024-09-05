@@ -151,7 +151,10 @@ def test_file_equality(new_file, test_file):
 
 def set_data_type(data, dictionary):
     for key in dictionary:
-        data[key] = data[key].astype(dictionary[key])
+        try:
+            data[key] = data[key].astype(dictionary[key])
+        except ValueError:
+            print(f"Warning: could not convert column {key}, into type {dictionary[key]}")
     return data
 
 def add_participant_id(data, dictionary, col_name, condition_letter, id_col_name, ses_col_name, participant_letter = 'P'):

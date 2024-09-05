@@ -61,7 +61,10 @@ def plot_average_participant_rates(movement_rates, ci_dict, scale, parameters, c
     for cond in cluster:
         for c in cluster[cond]:
             axs.hlines(sig_line, scale[min(c)], scale[max(c)], colors=color_dict[cond], linestyles=line_dict[cond])
-        sig_line += 0.02
+            # add dots to mark the beginning and end of the significant area
+            axs.scatter(scale[min(c)], sig_line, color = color_dict[cond], s = 5, marker = '*')
+            axs.scatter(scale[max(c)], sig_line, color = color_dict[cond], s = 5, marker = '*')
+        sig_line += 0.05
     axs.set_ylim([-0.1, upper_y])
     axs.set_xlim([-200, 850])
     axs.set_xlabel('time [ms] since event')
@@ -161,7 +164,6 @@ def make_delay_figure(delay_dict, data, conditions, measured_times, time, signif
 
         for t in measured_times:
             vals = [delay_dict[p][cond][t] for p in delay_dict]
-            print(f'{t}, {cond} has a standard deviation of {np.nanstd(vals)}')
             mean_vals = np.mean(vals, axis=0)
             ci_lower, ci_upper = st.t.interval(confidence=0.95, df=len(vals) - 1,
                                                loc=mean_vals,
@@ -175,6 +177,8 @@ def make_delay_figure(delay_dict, data, conditions, measured_times, time, signif
             for c in significant_clusters[col][cond]:
                 axs[int(col == 'rest')].hlines(sig_line, time[min(c)], time[max(c)],
                                                color=color_dict[cond], linestyle=line_dict[cond])
+                axs[int(col == 'rest')].scatter(time[min(c)], sig_line, color=color_dict[cond], s=5, marker='*')
+                axs[int(col == 'rest')].scatter(time[max(c)], sig_line, color=color_dict[cond], s=5, marker='*')
                 sig_line += [10, 2][int(col == 'rest')]
                 if col == 'rest':
                     axs[1].set_ylim(55, 85)
