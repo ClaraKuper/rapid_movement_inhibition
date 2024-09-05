@@ -90,8 +90,10 @@ def get_average_rates(rates, scale, conditions, parameters, condition_color_dict
                                            scale=st.sem(condition_rates))
         ci_dict[cond]['ci_upper'] = ci_upper
         ci_dict[cond]['ci_lower'] = ci_lower
-
-    plotting_func(rates_dict, ci_dict, scale, parameters, cluster, condition_color_dict, linestyle_dict, axs, y_lim)
+    try:
+        plotting_func(rates_dict, ci_dict, scale, parameters, cluster, condition_color_dict, linestyle_dict, axs, y_lim)
+    except TypeError:
+        plotting_func(rates_dict, ci_dict, scale, parameters, cluster, condition_color_dict, linestyle_dict, axs)
     # return rates_dict, scale
 
 
@@ -164,3 +166,24 @@ def get_weighted_average(df, column_value, column_weight):
     df = df.dropna(axis=0, how='any')
     weighted_average = sum((df[column_value] * df[column_weight]))/sum(df[column_weight])
     return weighted_average
+
+
+def add_block_structure(df, block_onsets):
+    df['block_id'] = np.nan
+    df['normalized_onset'] = np.nan
+    if len(df):
+        for idx in range(len(block_onsets) - 1):
+            block_idx = np.where(df.start_time.between(block_onsets.onset[idx], block_onsets.onset[idx + 1] - 10,
+                                                       inclusive='right'))[0]
+            # print(block_idx)
+            # print(idx)
+            df.loc[block_idx, 'block_id'] = block_onsets.block_number[idx]
+            df.loc[block_idx, 'normalized_onset'] = df.start_time[block_idx] - block_onsets.onset[idx]
+
+        block_idx = np.where(df.start_time > block_onsets.onset.values[-1])[0]
+        # print(block_idx)
+        df.loc[block_idx, 'block_id'] = block_onsets.block_number.values[-1]
+        df.loc[block_idx, 'normalized_onset'] = df.start_time[block_idx] - block_onsets.onset.values[-1]
+        #df.loc[:, 'trial_n'] = np.arange(0, len(df))
+
+    return df
