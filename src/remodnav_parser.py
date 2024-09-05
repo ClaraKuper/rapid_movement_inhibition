@@ -23,7 +23,8 @@ def main(file_path):
                         if os.path.exists(subfolder):
                             filename = 'normalized_position_with_blocks.csv'
                             event_filename = 'trial_events_jatos.csv'
-
+                            print(f'processing ppt {i}, condition {subfolder_name}, surface_folder {surf_folder}')
+                            total_saccades = 0
                             try:
                                 calib = calibration[calibration['participant_id'] == i]
                                 calib = calib[calib['session_number'] == session]
@@ -59,7 +60,7 @@ def main(file_path):
 
                                         # Run remodnav command with scaling factor
                                         os.system(f"remodnav {subfolder}/{surf_folder}/{tsv_filename} {saccade_folder}/{file_target} {scaling_factor} {hz} --savgol-length {savgol_length} --min-saccade-duration {min_sac_dur} --noise-factor 3 --velthresh-startvelocity 100")
-                                        print(f'Processed file: {i} {subfolder_name} {session} {surf_folder} {tsv_filename}')
+                                        # print(f'Processed file: {i} {subfolder_name} {session} {surf_folder} {tsv_filename}')
 
                                         # Convert TSV to CSV
                                         tsv_file_path = f'{saccade_folder}/{file_target}'
@@ -96,7 +97,7 @@ def main(file_path):
                                                 df_tsv.loc[idx, 'relative_eye_movement_time'] = df_tsv.loc[idx, 'trial_on_time'] - df_tsv.loc[idx, 'event_time']
 
                                         # df_tsv.to_csv(f'{saccade_folder}/{csv_file_name}', index=False)
-                                        print(f'Converted TSV to CSV: {csv_file_name}')
+                                        # print(f'Converted TSV to CSV: {csv_file_name}')
 
                                         sac_df = df_tsv[((df_tsv.label == 'SACC') | (df_tsv.label == 'ISAC'))]
                                         sac_df = sac_df.dropna(subset = ['trial_n']).reset_index(drop = True)
@@ -113,26 +114,26 @@ def main(file_path):
                                         # save the combined df
                                         all_events.to_csv('../results/inlab/all_eye_movement_events.csv', index = False)
                                         all_saccades.to_csv('../results/inlab/all_saccades.csv', index = False)
+                                        total_saccades += len(all_saccades)
+
 
                                         # delete unnessecary stuff
                                         os.remove(tsv_file_path)
                                         os.remove(f'{subfolder}/{surf_folder}/{tsv_filename}')
-                                        print(f'Saved all Saccades')
+                                        # print(f'Saved all Saccades')
 
                             except FileNotFoundError as e:
                                 print(e)
                                 print(f'File not found: {filename}')
 
+                        print(f'An average of {total_saccades/len(event_df)} '
+                              f'saccades was detected across {len(event_df)} trials')
 
                         shutil.rmtree(saccade_folder)
 
 
 def convert_csv_to_tsv(file, filename):
     new_file = file[['x_scaled', 'y_scaled']].copy(deep=True)
-    # new_file.loc[:, 'x_scaled'] = new_file['x_scaled'] * calib['px2deg'].values[0]
-    # new_file.loc[:, 'y_scaled'] = new_file['y_scaled'] * calib['px2deg'].values[0]
-    # new_file.loc[file.on_surf == 0, 'x_scaled'] = np.nan
-    # new_file.loc[file.on_surf == 0, 'y_scaled'] = np.nan
     new_file.to_csv(filename, index=False, header=False, sep='\t')
 
 
